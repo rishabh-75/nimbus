@@ -58,9 +58,9 @@ class Euler(object):
 
     def dcmEulerXYZ(self):
         dcm = self.rotationEulerXYZ()
-        phi = self.radToDeg(np.arctan2(dcm[1][2], dcm[2][2]))
-        theta = self.radToDeg(-np.arcsin(dcm[0][2]))
-        psi = self.radToDeg(np.arctan2(dcm[0][1], dcm[0][0]))
+        phi = np.arctan2(dcm[1][2], dcm[2][2])
+        theta = -np.arcsin(dcm[0][2])
+        psi = np.arctan2(dcm[0][1], dcm[0][0])
         return (phi, theta, psi)
 
 

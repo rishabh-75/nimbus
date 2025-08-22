@@ -1,4 +1,3 @@
-from annotated_types import LowerCase
 import numpy as np
 
 
@@ -45,6 +44,12 @@ class Euler(object):
             ]
         )
 
+    # def solve_for(self, axis: str, *args):
+    #     rotation = f"rotation{axis}"
+    #     if hasattr(self, rotation) and callable(getattr(self, rotation)):
+    #         func = getattr(self, rotation)
+    #         func(*args)
+
     def rotationEulerTransformation(self, rotationSequence):
         """
         XYZ: Roll | Pitch | Yaw \n
@@ -67,9 +72,8 @@ class Euler(object):
         except:
             print("! invalid sequence")
 
-    def dcmEulerTransformation(self, rotationSequence):
+    def dcmEulerTransformation(self, dcm, rotationSequence):
         try:
-            dcm = self.rotationEulerTransformation(rotationSequence)
             if rotationSequence == "XYZ":
                 phi = np.arctan2(dcm[1][2], dcm[2][2])
                 theta = -np.arcsin(dcm[0][2])
@@ -84,40 +88,43 @@ class Euler(object):
         except:
             print("! invalid sequence")
 
+    def linearInterpolation(self, attitude0, attitude1, t):
+        return attitude0 * (1 - t) + attitude1 * t
 
-eulerAngles = [30.0, 65.0, -45.0]
-print(
-    "Euler Angles [{}, {}, {}]".format(
-        eulerAngles[0],
-        eulerAngles[1],
-        eulerAngles[2],
-    )
-)
+
+eulerAngles = [-30.0, 65.0, -45.0]
+print(f"Euler Angles: {eulerAngles}")
 eulerTransform = Euler(eulerAngles)
 eulerTransform.setEulerAnglesToRadians()
 
 rotationSequence = "XYZ"
+dcm_xyz = eulerTransform.rotationEulerTransformation(rotationSequence)
 print(
     f"R{rotationSequence.lower()}: \n",
-    eulerTransform.rotationEulerTransformation(rotationSequence),
+    dcm_xyz,
 )
 print(
     f"Recovered {rotationSequence} Euler Angles: ",
     [
         eulerTransform.radToDeg(theta)
-        for theta in eulerTransform.dcmEulerTransformation(rotationSequence)
+        for theta in eulerTransform.dcmEulerTransformation(
+            dcm=dcm_xyz, rotationSequence=rotationSequence
+        )
     ],
 )
 
 rotationSequence = "ZXZ"
+dcm_zxz = eulerTransform.rotationEulerTransformation(rotationSequence)
 print(
     f"R{rotationSequence.lower()}: \n",
-    eulerTransform.rotationEulerTransformation(rotationSequence),
+    dcm_zxz,
 )
 print(
     f"Recovered {rotationSequence} Euler Angles: ",
     [
         eulerTransform.radToDeg(theta)
-        for theta in eulerTransform.dcmEulerTransformation(rotationSequence)
+        for theta in eulerTransform.dcmEulerTransformation(
+            dcm=dcm_zxz, rotationSequence=rotationSequence
+        )
     ],
 )

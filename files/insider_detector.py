@@ -13,27 +13,82 @@ from typing import Optional
 # ─── entity classification keywords ──────────────────────────────────────────
 
 FII_KEYWORDS = [
-    "fii", "fpi", "foreign", "overseas", "mauritius", "singapore", "cayman",
-    "llp", "inc", "sarl", "gmbh", "limited liability", "pte ltd", "bv", "nv",
-    "global", "international", "capital partners", "investment fund",
+    "fii",
+    "fpi",
+    "foreign",
+    "overseas",
+    "mauritius",
+    "singapore",
+    "cayman",
+    "llp",
+    "inc",
+    "sarl",
+    "gmbh",
+    "limited liability",
+    "pte ltd",
+    "bv",
+    "nv",
+    "global",
+    "international",
+    "capital partners",
+    "investment fund",
 ]
 
 DII_KEYWORDS = [
-    "dii", "mutual fund", "mf", "amc", "asset management", "hdfc mf",
-    "sbi mf", "lic", "nippon", "icici pru", "axis mf", "kotak mf",
-    "insurance", "pension", "epf", "nps", "uti", "birla",
+    "dii",
+    "mutual fund",
+    "mf",
+    "amc",
+    "asset management",
+    "hdfc mf",
+    "sbi mf",
+    "lic",
+    "nippon",
+    "icici pru",
+    "axis mf",
+    "kotak mf",
+    "insurance",
+    "pension",
+    "epf",
+    "nps",
+    "uti",
+    "birla",
 ]
 
 PROMOTER_KEYWORDS = [
-    "promoter", "director", "md", "ceo", "cfo", "chairman", "managing",
-    "whole time", "wholetime", "key managerial", "kmp", "insider",
-    "related party", "group company", "holding company", "subsidiary",
+    "promoter",
+    "director",
+    "md",
+    "ceo",
+    "cfo",
+    "chairman",
+    "managing",
+    "whole time",
+    "wholetime",
+    "key managerial",
+    "kmp",
+    "insider",
+    "related party",
+    "group company",
+    "holding company",
+    "subsidiary",
 ]
 
 BROKER_KEYWORDS = [
-    "securities", "broking", "broker", "zerodha", "icici securities",
-    "hdfc securities", "iifl", "motilal", "kotak securities", "sharekhan",
-    "angel", "5paisa", "upstox", "groww",
+    "securities",
+    "broking",
+    "broker",
+    "zerodha",
+    "icici securities",
+    "hdfc securities",
+    "iifl",
+    "motilal",
+    "kotak securities",
+    "sharekhan",
+    "angel",
+    "5paisa",
+    "upstox",
+    "groww",
 ]
 
 
@@ -43,8 +98,12 @@ class InsiderWallDetector:
     """
 
     DEAL_REQUIRED_COLS = {
-        "Date", "Symbol", "Client Name", "Buy/Sell",
-        "Quantity Traded", "Trade Price/Wght. Avg. Price",
+        "Date",
+        "Symbol",
+        "Client Name",
+        "Buy/Sell",
+        "Quantity Traded",
+        "Trade Price/Wght. Avg. Price",
     }
 
     def __init__(
@@ -66,15 +125,13 @@ class InsiderWallDetector:
         # Normalise column names
         df.columns = [c.strip() for c in df.columns]
         df["Date"] = pd.to_datetime(df["Date"], errors="coerce", dayfirst=True)
-        df["Quantity Traded"] = (
-            pd.to_numeric(df["Quantity Traded"].astype(str).str.replace(",", ""), errors="coerce").fillna(0)
-        )
-        df["Trade Price/Wght. Avg. Price"] = (
-            pd.to_numeric(
-                df["Trade Price/Wght. Avg. Price"].astype(str).str.replace(",", ""),
-                errors="coerce",
-            ).fillna(0)
-        )
+        df["Quantity Traded"] = pd.to_numeric(
+            df["Quantity Traded"].astype(str).str.replace(",", ""), errors="coerce"
+        ).fillna(0)
+        df["Trade Price/Wght. Avg. Price"] = pd.to_numeric(
+            df["Trade Price/Wght. Avg. Price"].astype(str).str.replace(",", ""),
+            errors="coerce",
+        ).fillna(0)
         df["Client Name"] = df["Client Name"].fillna("Unknown").str.strip()
         df["Buy/Sell"] = df["Buy/Sell"].str.upper().str.strip()
         df["Entity"] = df["Client Name"].apply(self._classify_entity)
@@ -145,7 +202,34 @@ class InsiderWallDetector:
             row["Interpretation"] = self._interpret_deal(row)
             records.append(row)
 
-        self.matched = pd.DataFrame(records)
+        MATCHED_COLS = [
+            "Date",
+            "Symbol",
+            "Client Name",
+            "Buy/Sell",
+            "Quantity Traded",
+            "Trade Price/Wght. Avg. Price",
+            "Remarks",
+            "Entity",
+            "Nearest_Strike",
+            "Proximity_%",
+            "Wall_Call_OI",
+            "Wall_Put_OI",
+            "Wall_PCR",
+            "Wall_Call_IV",
+            "Wall_Put_IV",
+            "Wall_Type_Hit",
+            "Score",
+            "Signal_Strength",
+            "Interpretation",
+        ]
+        if records:
+            self.matched = pd.DataFrame(records)
+            for col in MATCHED_COLS:
+                if col not in self.matched.columns:
+                    self.matched[col] = None
+        else:
+            self.matched = pd.DataFrame(columns=MATCHED_COLS)
         return self.matched
 
     # ─── scoring ─────────────────────────────────────────────────────────────
@@ -181,7 +265,9 @@ class InsiderWallDetector:
         # 5. Directional alignment (10 pts)
         side = deal.get("Buy/Sell", "")
         wall_type = deal.get("Wall_Type_Hit", "")
-        if (side == "BUY" and wall_type == "Put Wall") or (side == "SELL" and wall_type == "Call Wall"):
+        if (side == "BUY" and wall_type == "Put Wall") or (
+            side == "SELL" and wall_type == "Call Wall"
+        ):
             score += 10  # aligned with wall direction
 
         return min(score, 100)
@@ -206,7 +292,9 @@ class InsiderWallDetector:
         score = deal.get("Score", 0)
 
         if side == "BUY" and wall_type == "Put Wall" and score >= 60:
-            return f"{entity} ACCUMULATING at Put Wall {strike:.0f} — bullish confirmation"
+            return (
+                f"{entity} ACCUMULATING at Put Wall {strike:.0f} — bullish confirmation"
+            )
         elif side == "SELL" and wall_type == "Call Wall" and score >= 60:
             return f"{entity} DISTRIBUTING at Call Wall {strike:.0f} — bearish confirmation"
         elif side == "BUY" and score >= 60:
@@ -225,7 +313,7 @@ class InsiderWallDetector:
         if self.matched is None:
             self.match_deals_to_walls()
 
-        if self.matched.empty:
+        if self.matched.empty or "Score" not in self.matched.columns:
             self.zones = pd.DataFrame()
             return self.zones
 
@@ -237,7 +325,12 @@ class InsiderWallDetector:
             conviction = row.get("Avg_Score", 0)
             strike = row["Strike"]
             wall_row = self.walls[self.walls["Strike"] == strike]
-            wall_type = "Put Wall" if not wall_row.empty and wall_row.iloc[0]["Put_OI"] > wall_row.iloc[0]["Call_OI"] else "Call Wall"
+            wall_type = (
+                "Put Wall"
+                if not wall_row.empty
+                and wall_row.iloc[0]["Put_OI"] > wall_row.iloc[0]["Call_OI"]
+                else "Call Wall"
+            )
 
             if net_qty > 0 and wall_type == "Put Wall":
                 zone_type = "ACCUMULATION"
@@ -246,19 +339,27 @@ class InsiderWallDetector:
             else:
                 zone_type = "MIXED"
 
-            zones.append({
-                "Strike": strike,
-                "Zone_Type": zone_type,
-                "Net_Direction": "BUY" if net_qty >= 0 else "SELL",
-                "Net_Qty": abs(net_qty),
-                "Wall_OI": row.get("Total_OI", 0),
-                "PCR": row.get("PCR", 0),
-                "Avg_Score": round(conviction, 1),
-                "Conviction": self._signal_strength(int(conviction)),
-                "Interpretation": self._zone_interpretation(zone_type, strike, conviction),
-            })
+            zones.append(
+                {
+                    "Strike": strike,
+                    "Zone_Type": zone_type,
+                    "Net_Direction": "BUY" if net_qty >= 0 else "SELL",
+                    "Net_Qty": abs(net_qty),
+                    "Wall_OI": row.get("Total_OI", 0),
+                    "PCR": row.get("PCR", 0),
+                    "Avg_Score": round(conviction, 1),
+                    "Conviction": self._signal_strength(int(conviction)),
+                    "Interpretation": self._zone_interpretation(
+                        zone_type, strike, conviction
+                    ),
+                }
+            )
 
-        self.zones = pd.DataFrame(zones).sort_values("Avg_Score", ascending=False).reset_index(drop=True)
+        self.zones = (
+            pd.DataFrame(zones)
+            .sort_values("Avg_Score", ascending=False)
+            .reset_index(drop=True)
+        )
         return self.zones
 
     @staticmethod
@@ -268,7 +369,9 @@ class InsiderWallDetector:
         elif zone_type == "DISTRIBUTION":
             return f"Institutional selling at {strike:.0f} — potential resistance ceiling (score {score:.0f})"
         else:
-            return f"Mixed signals at {strike:.0f} — wait for clarity (score {score:.0f})"
+            return (
+                f"Mixed signals at {strike:.0f} — wait for clarity (score {score:.0f})"
+            )
 
     # ─── aggregation ─────────────────────────────────────────────────────────
 
@@ -279,20 +382,29 @@ class InsiderWallDetector:
         if self.matched is None:
             self.match_deals_to_walls()
 
-        if self.matched.empty:
+        if self.matched.empty or "Score" not in self.matched.columns:
             return pd.DataFrame()
 
         matched = self.matched.copy()
         matched["Signed_Qty"] = matched.apply(
-            lambda r: r["Quantity Traded"] if r["Buy/Sell"] == "BUY" else -r["Quantity Traded"], axis=1
+            lambda r: (
+                r["Quantity Traded"]
+                if r["Buy/Sell"] == "BUY"
+                else -r["Quantity Traded"]
+            ),
+            axis=1,
         )
 
-        agg = matched.groupby("Nearest_Strike").agg(
-            Net_Qty=("Signed_Qty", "sum"),
-            Avg_Score=("Score", "mean"),
-            Deal_Count=("Score", "count"),
-            Entities=("Entity", lambda x: ", ".join(x.unique())),
-        ).reset_index()
+        agg = (
+            matched.groupby("Nearest_Strike")
+            .agg(
+                Net_Qty=("Signed_Qty", "sum"),
+                Avg_Score=("Score", "mean"),
+                Deal_Count=("Score", "count"),
+                Entities=("Entity", lambda x: ", ".join(x.unique())),
+            )
+            .reset_index()
+        )
         agg.rename(columns={"Nearest_Strike": "Strike"}, inplace=True)
 
         # Merge wall OI info
@@ -311,25 +423,55 @@ class InsiderWallDetector:
             self.detect_zones()
 
         total_deals = len(self.matched)
-        at_wall = len(self.matched[self.matched["Score"] >= 40])
-        high_conviction = len(self.matched[self.matched["Score"] >= 60])
 
+        # Guard against empty or column-less DataFrame
+        has_score = "Score" in self.matched.columns and not self.matched.empty
+        has_entity = "Entity" in self.matched.columns and not self.matched.empty
+
+        at_wall = (
+            int(self.matched[self.matched["Score"] >= 40]["Score"].count())
+            if has_score
+            else 0
+        )
+        high_conviction = (
+            int(self.matched[self.matched["Score"] >= 60]["Score"].count())
+            if has_score
+            else 0
+        )
         top_entity = (
-            self.matched["Entity"].value_counts().index[0]
-            if not self.matched.empty
-            else "N/A"
+            self.matched["Entity"].value_counts().index[0] if has_entity else "N/A"
         )
 
-        acc_zones = len(self.zones[self.zones["Zone_Type"] == "ACCUMULATION"]) if not self.zones.empty else 0
-        dist_zones = len(self.zones[self.zones["Zone_Type"] == "DISTRIBUTION"]) if not self.zones.empty else 0
+        acc_zones = (
+            len(self.zones[self.zones["Zone_Type"] == "ACCUMULATION"])
+            if not self.zones.empty
+            else 0
+        )
+        dist_zones = (
+            len(self.zones[self.zones["Zone_Type"] == "DISTRIBUTION"])
+            if not self.zones.empty
+            else 0
+        )
 
         net_fii_dii = 0
-        if not self.matched.empty:
-            inst = self.matched[self.matched["Entity"].isin(["FII/FPI", "DII/MF"])].copy()
-            inst["Signed_Qty"] = inst.apply(
-                lambda r: r["Quantity Traded"] if r["Buy/Sell"] == "BUY" else -r["Quantity Traded"], axis=1
-            )
-            net_fii_dii = inst["Signed_Qty"].sum()
+        if not self.matched.empty and "Entity" in self.matched.columns:
+            inst = self.matched[
+                self.matched["Entity"].isin(["FII/FPI", "DII/MF"])
+            ].copy()
+            if (
+                not inst.empty
+                and "Buy/Sell" in inst.columns
+                and "Quantity Traded" in inst.columns
+            ):
+                inst["Signed_Qty"] = inst.apply(
+                    lambda r: (
+                        r["Quantity Traded"]
+                        if r["Buy/Sell"] == "BUY"
+                        else -r["Quantity Traded"]
+                    ),
+                    axis=1,
+                )
+                net_fii_dii = inst["Signed_Qty"].sum()
 
         return {
             "total_deals": total_deals,

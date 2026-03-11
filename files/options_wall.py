@@ -15,14 +15,26 @@ class OptionsWallCalculator:
     structural OI walls, PCR levels, IV skew, max pain, and key levels.
     """
 
-    REQUIRED_COLS = {"Strike", "Expiry", "OptionType", "OpenInterest", "Volume", "IV", "LTP"}
+    REQUIRED_COLS = {
+        "Strike",
+        "Expiry",
+        "OptionType",
+        "OpenInterest",
+        "Volume",
+        "IV",
+        "LTP",
+    }
 
     def __init__(self, df: pd.DataFrame):
         self._validate(df)
         self.raw = df.copy()
         self.raw["Strike"] = pd.to_numeric(self.raw["Strike"], errors="coerce")
-        self.raw["OpenInterest"] = pd.to_numeric(self.raw["OpenInterest"], errors="coerce").fillna(0)
-        self.raw["Volume"] = pd.to_numeric(self.raw["Volume"], errors="coerce").fillna(0)
+        self.raw["OpenInterest"] = pd.to_numeric(
+            self.raw["OpenInterest"], errors="coerce"
+        ).fillna(0)
+        self.raw["Volume"] = pd.to_numeric(self.raw["Volume"], errors="coerce").fillna(
+            0
+        )
         self.raw["IV"] = pd.to_numeric(self.raw["IV"], errors="coerce").fillna(0)
         self.raw["LTP"] = pd.to_numeric(self.raw["LTP"], errors="coerce").fillna(0)
         self.raw["OptionType"] = self.raw["OptionType"].str.upper().str.strip()
@@ -46,15 +58,30 @@ class OptionsWallCalculator:
         puts = self.raw[self.raw["OptionType"] == "PE"].copy()
 
         def agg(grp: pd.DataFrame, prefix: str) -> pd.DataFrame:
-            out = grp.groupby("Strike").agg(
-                OI=("OpenInterest", "sum"),
-                Volume=("Volume", "sum"),
-                IV=("IV", lambda x: np.average(x, weights=grp.loc[x.index, "OpenInterest"].clip(lower=1))),
-                LTP=("LTP", "last"),
-                Expiry_Count=("Expiry", "nunique"),
-                Expiries=("Expiry", lambda x: ", ".join(sorted(x.astype(str).unique()))),
-            ).reset_index()
-            out.columns = ["Strike"] + [f"{prefix}_{c}" for c in ["OI", "Volume", "IV", "LTP", "Expiry_Count", "Expiries"]]
+            out = (
+                grp.groupby("Strike")
+                .agg(
+                    OI=("OpenInterest", "sum"),
+                    Volume=("Volume", "sum"),
+                    IV=(
+                        "IV",
+                        lambda x: np.average(
+                            x, weights=grp.loc[x.index, "OpenInterest"].clip(lower=1)
+                        ),
+                    ),
+                    LTP=("LTP", "last"),
+                    Expiry_Count=("Expiry", "nunique"),
+                    Expiries=(
+                        "Expiry",
+                        lambda x: ", ".join(sorted(x.astype(str).unique())),
+                    ),
+                )
+                .reset_index()
+            )
+            out.columns = ["Strike"] + [
+                f"{prefix}_{c}"
+                for c in ["OI", "Volume", "IV", "LTP", "Expiry_Count", "Expiries"]
+            ]
             return out
 
         c_agg = agg(calls, "Call")
@@ -68,30 +95,43 @@ class OptionsWallCalculator:
                 merged[col] = merged[col].astype(str)
 
         merged["Total_OI"] = merged["Call_OI"] + merged["Put_OI"]
-        merged["PCR_OI"] = np.where(merged["Call_OI"] > 0, merged["Put_OI"] / merged["Call_OI"], 0)
+        merged["PCR_OI"] = np.where(
+            merged["Call_OI"] > 0, merged["Put_OI"] / merged["Call_OI"], 0
+        )
 
         total_call_oi = merged["Call_OI"].sum()
         total_put_oi = merged["Put_OI"].sum()
-        merged["Call_Strength_%"] = np.where(total_call_oi > 0, merged["Call_OI"] / total_call_oi * 100, 0)
-        merged["Put_Strength_%"] = np.where(total_put_oi > 0, merged["Put_OI"] / total_put_oi * 100, 0)
+        merged["Call_Strength_%"] = np.where(
+            total_call_oi > 0, merged["Call_OI"] / total_call_oi * 100, 0
+        )
+        merged["Put_Strength_%"] = np.where(
+            total_put_oi > 0, merged["Put_OI"] / total_put_oi * 100, 0
+        )
 
         # Unified expiry info
-        merged["Expiry_Count"] = merged[["Call_Expiry_Count", "Put_Expiry_Count"]].max(axis=1).astype(int)
+        merged["Expiry_Count"] = (
+            merged[["Call_Expiry_Count", "Put_Expiry_Count"]].max(axis=1).astype(int)
+        )
         merged["Expiries"] = merged.apply(
-            lambda r: r["Call_Expiries"] if r["Call_Expiries"] != "0" else r["Put_Expiries"], axis=1
+            lambda r: (
+                r["Call_Expiries"] if r["Call_Expiries"] != "0" else r["Put_Expiries"]
+            ),
+            axis=1,
         )
 
         # Rename for compatibility
-        merged = merged.rename(columns={
-            "Call_OI": "Call_OI",
-            "Put_OI": "Put_OI",
-            "Call_Volume": "Call_Volume",
-            "Put_Volume": "Put_Volume",
-            "Call_IV": "Call_IV",
-            "Put_IV": "Put_IV",
-            "Call_LTP": "Call_LTP",
-            "Put_LTP": "Put_LTP",
-        })
+        merged = merged.rename(
+            columns={
+                "Call_OI": "Call_OI",
+                "Put_OI": "Put_OI",
+                "Call_Volume": "Call_Volume",
+                "Put_Volume": "Put_Volume",
+                "Call_IV": "Call_IV",
+                "Put_IV": "Put_IV",
+                "Call_LTP": "Call_LTP",
+                "Put_LTP": "Put_LTP",
+            }
+        )
 
         merged = merged.sort_values("Strike").reset_index(drop=True)
         self.consolidated = merged
@@ -164,8 +204,16 @@ class OptionsWallCalculator:
         df = self.consolidated
 
         # OI-weighted average IV
-        call_iv = np.average(df["Call_IV"], weights=df["Call_OI"].clip(lower=1)) if df["Call_OI"].sum() > 0 else 0
-        put_iv = np.average(df["Put_IV"], weights=df["Put_OI"].clip(lower=1)) if df["Put_OI"].sum() > 0 else 0
+        call_iv = (
+            np.average(df["Call_IV"], weights=df["Call_OI"].clip(lower=1))
+            if df["Call_OI"].sum() > 0
+            else 0
+        )
+        put_iv = (
+            np.average(df["Put_IV"], weights=df["Put_OI"].clip(lower=1))
+            if df["Put_OI"].sum() > 0
+            else 0
+        )
 
         skew = put_iv - call_iv  # positive = put skew (bearish hedging demand)
 
@@ -214,16 +262,36 @@ class OptionsWallCalculator:
     def identify_key_levels(self, cmp: Optional[float] = None, pct: float = 75) -> dict:
         """
         Identify support, resistance, and consolidation zones.
+
+        Support   = highest-OI put wall BELOW spot  (a floor buyers defend)
+        Resistance= highest-OI call wall ABOVE spot  (a ceiling sellers defend)
+
+        Using cmp=None falls back to the all-strikes max/min, but the KPI card
+        always passes cmp so the values will be spot-relative.
         """
         call_walls, put_walls = self.identify_walls(pct=pct)
 
-        # Highest put wall = primary support (floor)
-        primary_support = put_walls["Strike"].max() if not put_walls.empty else None
-        # Highest call wall (by OI) = primary resistance (ceiling)
+        # ── Support: highest Put-OI wall that is at or below spot ─────────────
+        primary_support = None
+        if not put_walls.empty:
+            if cmp is not None:
+                below = put_walls[put_walls["Strike"] <= cmp]
+                pool = (
+                    below if not below.empty else put_walls
+                )  # fallback to all if none below
+            else:
+                pool = put_walls
+            primary_support = float(pool.loc[pool["Put_OI"].idxmax(), "Strike"])
+
+        # ── Resistance: highest Call-OI wall that is at or above spot ─────────
+        primary_resistance = None
         if not call_walls.empty:
-            primary_resistance = call_walls.loc[call_walls["Call_OI"].idxmax(), "Strike"]
-        else:
-            primary_resistance = None
+            if cmp is not None:
+                above = call_walls[call_walls["Strike"] >= cmp]
+                pool = above if not above.empty else call_walls
+            else:
+                pool = call_walls
+            primary_resistance = float(pool.loc[pool["Call_OI"].idxmax(), "Strike"])
 
         # Consolidation zone: range between top put & top call walls
         consolidation_low = primary_support

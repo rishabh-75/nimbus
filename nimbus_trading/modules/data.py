@@ -371,3 +371,287 @@ def is_market_open() -> bool:
     open_ = now.replace(hour=9, minute=15, second=0, microsecond=0)
     close_ = now.replace(hour=15, minute=30, second=0, microsecond=0)
     return open_ <= now <= close_
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SYMBOL UNIVERSE  (NSE master-quote API + local cache)
+# ══════════════════════════════════════════════════════════════════════════════
+
+import json
+import os
+import logging
+
+_UNIVERSE_CACHE_PATH = os.path.join(
+    os.path.dirname(__file__), "..", "data", "universe_cache.json"
+)
+
+# F&O-eligible indices always included regardless of master-quote response
+_FNO_INDICES = [
+    "NIFTY",
+    "BANKNIFTY",
+    "FINNIFTY",
+    "MIDCPNIFTY",
+    "NIFTYNXT50",
+]
+
+# Hard fallback: NIFTY 50 stocks (used only when NSE unreachable + no cache)
+_NIFTY50_FALLBACK = [
+    "ADANIENT",
+    "ADANIPORTS",
+    "APOLLOHOSP",
+    "ASIANPAINT",
+    "AXISBANK",
+    "BAJAJ-AUTO",
+    "BAJFINANCE",
+    "BAJAJFINSV",
+    "BPCL",
+    "BHARTIARTL",
+    "BRITANNIA",
+    "CIPLA",
+    "COALINDIA",
+    "DIVISLAB",
+    "DRREDDY",
+    "EICHERMOT",
+    "GRASIM",
+    "HCLTECH",
+    "HDFCBANK",
+    "HDFCLIFE",
+    "HEROMOTOCO",
+    "HINDALCO",
+    "HINDUNILVR",
+    "ICICIBANK",
+    "ITC",
+    "INDUSINDBK",
+    "INFY",
+    "JSWSTEEL",
+    "KOTAKBANK",
+    "LT",
+    "M&M",
+    "MARUTI",
+    "NTPC",
+    "NESTLEIND",
+    "ONGC",
+    "POWERGRID",
+    "RELIANCE",
+    "SBILIFE",
+    "SBIN",
+    "SUNPHARMA",
+    "TCS",
+    "TATACONSUM",
+    "TATAMOTORS",
+    "TATASTEEL",
+    "TECHM",
+    "TITAN",
+    "UPL",
+    "ULTRACEMCO",
+    "WIPRO",
+    "ZOMATO",
+] + _FNO_INDICES
+
+
+def _universe_cache_valid() -> bool:
+    """Return True if cache file exists and was written today (IST)."""
+    if not os.path.exists(_UNIVERSE_CACHE_PATH):
+        return False
+    try:
+        with open(_UNIVERSE_CACHE_PATH) as f:
+            data = json.load(f)
+        saved = datetime.datetime.fromisoformat(data.get("ts", "2000-01-01"))
+        tz_ist = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
+        now_ist = datetime.datetime.now(tz_ist).replace(tzinfo=None)
+        # Refresh if saved before 09:00 today
+        today_open = now_ist.replace(hour=9, minute=0, second=0, microsecond=0)
+        return saved >= today_open
+    except Exception:
+        return False
+
+
+def _load_universe_cache() -> list[str]:
+    try:
+        with open(_UNIVERSE_CACHE_PATH) as f:
+            data = json.load(f)
+        syms = data.get("symbols", [])
+        if syms:
+            return syms
+    except Exception:
+        pass
+    return []
+
+
+def _save_universe_cache(symbols: list[str]) -> None:
+    try:
+        os.makedirs(os.path.dirname(_UNIVERSE_CACHE_PATH), exist_ok=True)
+        with open(_UNIVERSE_CACHE_PATH, "w") as f:
+            json.dump(
+                {
+                    "ts": datetime.datetime.now().isoformat(),
+                    "symbols": symbols,
+                },
+                f,
+            )
+    except Exception as exc:
+        logging.warning(f"Could not save universe cache: {exc}")
+
+
+def _fetch_universe_from_nse() -> list[str]:
+    """
+    Fetch F&O symbol universe from NSE master-quote API.
+    NSE SESSION RULES APPLY: Firefox/82 UA, allow_redirects=False,
+    cookies = dict(resp.cookies) from response (not session).
+    """
+    session, cookies = _make_nse_session()
+
+    resp = session.get(
+        "https://www.nseindia.com/api/master-quote",
+        headers=_NSE_HEADER,
+        cookies=cookies,
+        allow_redirects=False,  # ← mandatory on every NSE API call
+        timeout=20,
+    )
+    _assert_json(resp)
+    raw = resp.json()
+
+    # master-quote returns either a list or a dict with a list under a key
+    if isinstance(raw, list):
+        items = raw
+    elif isinstance(raw, dict):
+        # try common key names
+        for key in ("data", "symbols", "results", "records"):
+            if key in raw and isinstance(raw[key], list):
+                items = raw[key]
+                break
+        else:
+            items = []
+    else:
+        items = []
+
+    symbols = set()
+    for item in items:
+        if isinstance(item, str):
+            symbols.add(item.strip().upper())
+        elif isinstance(item, dict):
+            # Extract symbol; prefer 'symbol' key, fallback to others
+            sym = (
+                (
+                    item.get("symbol")
+                    or item.get("Symbol")
+                    or item.get("SYMBOL")
+                    or item.get("name")
+                    or ""
+                )
+                .strip()
+                .upper()
+            )
+            if not sym:
+                continue
+            # Filter: keep equities and F&O-eligible; exclude ETFs / bonds
+            inst_type = str(
+                item.get("instrumentType")
+                or item.get("instrument_type")
+                or item.get("series")
+                or ""
+            ).upper()
+            # Skip clearly non-equity instruments
+            if any(x in inst_type for x in ("ETF", "BOND", "DEBENTURE", "WARRANT")):
+                continue
+            # Only include if it looks like a plain equity ticker (no spaces, etc.)
+            if (
+                sym
+                and sym.replace("-", "").replace("&", "").isalpha()
+                or sym in NSE_LOT_SIZES
+            ):
+                symbols.add(sym)
+
+    # Always include the F&O indices
+    for idx in _FNO_INDICES:
+        symbols.add(idx)
+
+    return sorted(symbols)
+
+
+def get_universe() -> list[str]:
+    """
+    Return list of NSE F&O symbol strings.
+    Priority: valid cache → live NSE fetch → stale cache → hardcoded fallback.
+    Never raises; always returns a usable list.
+    """
+    # 1. Valid cache (written today after 09:00 IST)
+    if _universe_cache_valid():
+        cached = _load_universe_cache()
+        if cached:
+            return cached
+
+    # 2. Try live fetch
+    try:
+        symbols = _fetch_universe_from_nse()
+        if symbols:
+            _save_universe_cache(symbols)
+            return symbols
+    except Exception as exc:
+        logging.warning(f"Universe fetch failed: {exc}")
+
+    # 3. Stale cache is better than hardcoded
+    stale = _load_universe_cache()
+    if stale:
+        return stale
+
+    # 4. Absolute fallback
+    return list(_NIFTY50_FALLBACK)
+
+
+# Predefined curated lists for the scanner universe selector
+NIFTY100_SYMBOLS = [
+    "NIFTY",
+    "BANKNIFTY",
+    "RELIANCE",
+    "TCS",
+    "HDFCBANK",
+    "ICICIBANK",
+    "INFY",
+    "SBIN",
+    "AXISBANK",
+    "LT",
+    "BAJFINANCE",
+    "KOTAKBANK",
+    "HCLTECH",
+    "WIPRO",
+    "MARUTI",
+    "ONGC",
+    "NTPC",
+    "POWERGRID",
+    "SUNPHARMA",
+    "TATAMOTORS",
+    "ADANIENT",
+    "ADANIPORTS",
+    "TATASTEEL",
+    "JSWSTEEL",
+    "HINDALCO",
+    "BHARTIARTL",
+    "TITAN",
+    "ASIANPAINT",
+    "BAJAJ-AUTO",
+    "HEROMOTOCO",
+    "DRREDDY",
+    "CIPLA",
+    "DIVISLAB",
+    "NESTLEIND",
+    "ULTRACEMCO",
+    "GRASIM",
+    "TECHM",
+    "EICHERMOT",
+    "INDUSINDBK",
+    "BAJAJFINSV",
+    "BPCL",
+    "ITC",
+    "COALINDIA",
+    "M&M",
+    "UPL",
+    "TATACONSUM",
+    "APOLLOHOSP",
+    "HDFCLIFE",
+    "SBILIFE",
+    "BRITANNIA",
+    "ZOMATO",
+    "FINNIFTY",
+    "MIDCPNIFTY",
+]

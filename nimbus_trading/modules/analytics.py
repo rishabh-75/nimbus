@@ -1,8 +1,8 @@
 """
 modules/analytics.py
 ────────────────────
-Options analytics: OI walls, GEX, max pain, expiry context, trade viability.
-All calculations are pure pandas/numpy — no Streamlit dependencies.
+Options analytics + integrated viability scoring.
+Now accepts PriceSignals for daily bias, vol state, WR phase.
 """
 
 from __future__ import annotations
@@ -15,6 +15,8 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
+from modules.indicators import PriceSignals
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # DATA CLASSES
@@ -23,23 +25,23 @@ import pandas as pd
 
 @dataclass
 class Walls:
-    resistance: Optional[float] = None  # strongest call wall above spot
-    support: Optional[float] = None  # strongest put wall below spot
+    resistance: Optional[float] = None
+    support: Optional[float] = None
     max_pain: Optional[float] = None
     pcr_oi: float = 1.0
     pcr_sentiment: str = "Neutral"
-    resistance_pct: float = 0.0  # % distance above spot (positive)
-    support_pct: float = 0.0  # % distance below spot (negative)
-    room_to_run: bool = False  # resistance >= 1.5% away
+    resistance_pct: float = 0.0
+    support_pct: float = 0.0
+    room_to_run: bool = False
 
 
 @dataclass
 class GEX:
     net_gex: float = 0.0
     abs_gex: float = 0.0
-    regime: str = "Neutral"  # "Positive" | "Negative" | "Neutral"
+    regime: str = "Neutral"
     hvl: Optional[float] = None
-    by_expiry: list = field(default_factory=list)  # [(label, dte, net, pct%), ...]
+    by_expiry: list = field(default_factory=list)
     spot: float = 0.0
 
 
@@ -53,9 +55,20 @@ class ExpiryCtx:
 
 
 @dataclass
+class RegimeClass:
+    """Market regime classification for 1-week momentum strategy."""
+
+    regime: str = "UNKNOWN"  # TREND-FRIENDLY | PINNING | NEUTRAL
+    reason: str = ""
+    size_cap: str = "FULL"  # FULL | HALF | SKIP
+    detail: str = ""
+    color: str = "muted"  # emerald | red | yellow | muted
+
+
+@dataclass
 class CheckItem:
     item: str
-    status: str  # "pass" | "warn" | "fail" | "neutral"
+    status: str  # pass | warn | fail | neutral
     detail: str
     implication: str
 
@@ -67,6 +80,7 @@ class Viability:
     color: str = "yellow"
     sizing: str = "HALF"
     checklist: list = field(default_factory=list)
+    risk_notes: list = field(default_factory=list)  # list of str — main risk warnings
 
 
 @dataclass
@@ -74,6 +88,7 @@ class OptionsContext:
     walls: Walls = field(default_factory=Walls)
     gex: GEX = field(default_factory=GEX)
     expiry: ExpiryCtx = field(default_factory=ExpiryCtx)
+    regime: RegimeClass = field(default_factory=RegimeClass)
     viability: Viability = field(default_factory=Viability)
 
 
@@ -83,7 +98,11 @@ class OptionsContext:
 
 
 def analyze(
-    options_df: pd.DataFrame, spot: float, lot_size: int = 75
+    options_df: pd.DataFrame,
+    spot: float,
+    lot_size: int = 75,
+    price_signals: Optional[PriceSignals] = None,
+    room_thresh: float = 3.0,  # % min distance to resistance (configurable)
 ) -> OptionsContext:
     ctx = OptionsContext()
     if options_df is None or options_df.empty or spot <= 0:
@@ -91,10 +110,12 @@ def analyze(
     df = _clean(options_df)
     if df.empty:
         return ctx
+
     ctx.walls = _walls(df, spot)
     ctx.gex = _gex(df, spot, lot_size)
     ctx.expiry = _expiry_ctx(df, spot, ctx.walls.max_pain)
-    ctx.viability = _viability(ctx)
+    ctx.regime = _regime_classify(ctx.gex, ctx.walls, ctx.expiry, spot)
+    ctx.viability = _viability(ctx, price_signals, room_thresh)
     return ctx
 
 
@@ -131,23 +152,27 @@ def _walls(df: pd.DataFrame, spot: float, oi_pct: float = 75.0) -> Walls:
     call_walls = agg[agg["Call_OI"] >= call_thresh]
     put_walls = agg[agg["Put_OI"] >= put_thresh]
 
-    # Resistance: strongest call wall AT or ABOVE spot
     above = call_walls[call_walls["Strike"] >= spot]
-    if not above.empty:
-        resistance = float(above.loc[above["Call_OI"].idxmax(), "Strike"])
-    elif not call_walls.empty:
-        resistance = float(call_walls.loc[call_walls["Call_OI"].idxmax(), "Strike"])
-    else:
-        resistance = None
+    resistance = (
+        float(above.loc[above["Call_OI"].idxmax(), "Strike"])
+        if not above.empty
+        else (
+            float(call_walls.loc[call_walls["Call_OI"].idxmax(), "Strike"])
+            if not call_walls.empty
+            else None
+        )
+    )
 
-    # Support: strongest put wall AT or BELOW spot
     below = put_walls[put_walls["Strike"] <= spot]
-    if not below.empty:
-        support = float(below.loc[below["Put_OI"].idxmax(), "Strike"])
-    elif not put_walls.empty:
-        support = float(put_walls.loc[put_walls["Put_OI"].idxmax(), "Strike"])
-    else:
-        support = None
+    support = (
+        float(below.loc[below["Put_OI"].idxmax(), "Strike"])
+        if not below.empty
+        else (
+            float(put_walls.loc[put_walls["Put_OI"].idxmax(), "Strike"])
+            if not put_walls.empty
+            else None
+        )
+    )
 
     max_pain = _max_pain(agg)
     res_pct = ((resistance - spot) / spot * 100) if resistance else 0.0
@@ -197,7 +222,7 @@ def _max_pain(agg: pd.DataFrame) -> Optional[float]:
     return float(min(pain, key=pain.get))
 
 
-def _bs_gamma(S: float, K: float, T: float, r: float, sigma: float) -> float:
+def _bs_gamma(S, K, T, r, sigma):
     try:
         if sigma <= 0 or T <= 0 or S <= 0:
             return 0.0
@@ -262,7 +287,6 @@ def _gex(
     net = float(gdf["gex"].sum())
     abs_tot = float(gdf["gex"].abs().sum())
 
-    # HVL: strike where cumulative GEX crosses zero
     by_str = gdf.groupby("strike")["gex"].sum().sort_index()
     cum = by_str.cumsum()
     hvl = None
@@ -277,7 +301,6 @@ def _gex(
         else "Positive" if net > abs_tot * 0.05 else "Neutral"
     )
 
-    # By-expiry summary (skip DTE=0)
     by_expiry = []
     for dte_val, grp in gdf[gdf["dte"] > 0].groupby("dte"):
         exp_net = float(grp["gex"].sum())
@@ -303,15 +326,12 @@ def _expiry_ctx(df: pd.DataFrame, spot: float, max_pain: Optional[float]) -> Exp
         [(d, str(e)) for e in expiries if (d := _parse_dte(str(e), today)) >= 0],
         key=lambda x: x[0],
     )
-    # Skip expired (DTE=0)
     live = [(d, e) for d, e in dtes if d > 0]
     if not live:
         return ExpiryCtx()
 
     next_dte, next_exp = live[0]
     mp_pct = ((spot - max_pain) / max_pain * 100) if max_pain else 0.0
-
-    # Spot proximity to max pain (Step 3 of workflow)
     near_mp = (abs(spot - max_pain) / spot < 0.012) if (max_pain and spot) else False
 
     if next_dte <= 1:
@@ -330,7 +350,7 @@ def _expiry_ctx(df: pd.DataFrame, spot: float, max_pain: Optional[float]) -> Exp
         )
     elif next_dte <= 4 and near_mp:
         pin_risk = "HIGH"
-        warning = f"Expiry in {next_dte}d + spot within 1.2% of max pain {max_pain:,.0f} — HIGH pin risk"
+        warning = f"Expiry {next_dte}d + spot within 1.2% of max pain {max_pain:,.0f} — HIGH pin risk"
     elif next_dte <= 4:
         pin_risk = "MODERATE"
         warning = (
@@ -340,7 +360,9 @@ def _expiry_ctx(df: pd.DataFrame, spot: float, max_pain: Optional[float]) -> Exp
         )
     elif near_mp:
         pin_risk = "MODERATE"
-        warning = f"Spot within 1.2% of max pain {max_pain:,.0f} — gravitational pull risk even with {next_dte}d to expiry"
+        warning = (
+            f"Spot within 1.2% of max pain {max_pain:,.0f} — gravitational pull risk"
+        )
     else:
         pin_risk = "LOW"
         warning = None
@@ -354,16 +376,112 @@ def _expiry_ctx(df: pd.DataFrame, spot: float, max_pain: Optional[float]) -> Exp
     )
 
 
-def _viability(ctx: OptionsContext) -> Viability:
+def _regime_classify(
+    gex: GEX, walls: Walls, expiry: ExpiryCtx, spot: float
+) -> RegimeClass:
+    """
+    Classify market regime for 1-week momentum strategy:
+      TREND-FRIENDLY  — GEX not strongly positive, spot has room vs walls
+      PINNING         — strong positive GEX, spot near max pain
+      NEUTRAL         — mixed signals
+    """
+    mp = walls.max_pain or spot
+    near_mp = abs(spot - mp) / spot < 0.015 if mp else False
+    pos_gex = gex.regime == "Positive"
+    neg_gex = gex.regime == "Negative"
+    high_pin = expiry.pin_risk in ("HIGH", "MODERATE")
+
+    if pos_gex and near_mp:
+        return RegimeClass(
+            regime="PINNING",
+            reason="Strong positive GEX + spot hugging max pain",
+            size_cap="HALF",
+            detail=f"Dealers defend {mp:,.0f} — momentum trades face strong headwinds. Size down.",
+            color="red",
+        )
+    if pos_gex and high_pin:
+        return RegimeClass(
+            regime="PINNING",
+            reason="Positive GEX + expiry compression risk",
+            size_cap="HALF",
+            detail=f"Positive GEX with {expiry.days_remaining}d to expiry — pin risk elevated. Size down.",
+            color="red",
+        )
+    if neg_gex and walls.resistance_pct >= 2.0:
+        return RegimeClass(
+            regime="TREND-FRIENDLY",
+            reason="Negative GEX + adequate structural room",
+            size_cap="FULL",
+            detail=f"Dealers amplify moves, {walls.resistance_pct:.1f}% clear to {walls.resistance:,.0f}. Full size allowed.",
+            color="emerald",
+        )
+    if not pos_gex and walls.resistance_pct >= 1.5 and not near_mp:
+        return RegimeClass(
+            regime="TREND-FRIENDLY",
+            reason="Neutral/Negative GEX + spot not pinned",
+            size_cap="FULL",
+            detail=f"No strong pinning forces. {walls.resistance_pct:.1f}% room to resistance.",
+            color="emerald",
+        )
+    return RegimeClass(
+        regime="NEUTRAL",
+        reason="Mixed signals",
+        size_cap="HALF",
+        detail="No clear trend-friendly or pinning regime. Trade with standard size.",
+        color="yellow",
+    )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# VIABILITY SCORING  (integrates price signals + options context)
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+def _viability(
+    ctx: OptionsContext,
+    ps: Optional[PriceSignals] = None,
+    room_thresh: float = 3.0,
+) -> Viability:
     score = 50
     checklist = []
+    risk_notes = []
 
-    def add(item, status, detail, implication):
+    def add(item, status, detail, impl):
         checklist.append(
-            CheckItem(item=item, status=status, detail=detail, implication=implication)
+            CheckItem(item=item, status=status, detail=detail, implication=impl)
         )
 
-    # 1. GEX regime
+    def risk(note: str):
+        risk_notes.append(note)
+
+    # ── 1. Daily Bias (price signal — most important filter) ──────────────────
+    if ps is not None:
+        if ps.daily_bias == "BULLISH":
+            score += 15
+            add(
+                "Daily Trend",
+                "pass",
+                f"Daily 20-SMA: Bullish ({ps.daily_bias_pct:+.1f}%)",
+                "Price above daily 20-SMA — long bias confirmed at higher timeframe",
+            )
+        elif ps.daily_bias == "BEARISH":
+            score -= 20
+            add(
+                "Daily Trend",
+                "fail",
+                f"Daily 20-SMA: Bearish ({ps.daily_bias_pct:+.1f}%)",
+                "Price BELOW daily 20-SMA — do NOT take new long entries",
+            )
+            risk("Daily bearish — no new longs")
+        else:
+            add(
+                "Daily Trend",
+                "neutral",
+                f"Daily 20-SMA: Neutral ({ps.daily_bias_pct:+.1f}%)",
+                "Price near daily SMA — proceed with caution, prefer pullback entries",
+            )
+
+    # ── 2. GEX Regime / Market Regime ─────────────────────────────────────────
     regime = ctx.gex.regime
     if regime == "Negative":
         score += 15
@@ -371,138 +489,314 @@ def _viability(ctx: OptionsContext) -> Viability:
             "GEX Regime",
             "pass",
             "Negative GEX",
-            "Dealers amplify moves → BB momentum signals are MORE reliable → Size normally",
+            "Dealers amplify directional moves — momentum signals MORE reliable",
         )
     elif regime == "Positive":
         score -= 15
         add(
             "GEX Regime",
             "warn",
-            "Positive GEX",
-            "Market gravitates toward max pain → Momentum trades face headwinds → Size down 50%",
+            f"Positive GEX ({ctx.gex.net_gex:+,.0f}M)",
+            f"Market gravitates toward max pain {ctx.walls.max_pain:,.0f} — size down 50%",
         )
+        risk(f"GEX Positive — max pain {ctx.walls.max_pain:,.0f} acts as magnet")
     else:
         add(
             "GEX Regime",
             "neutral",
             "Neutral GEX",
-            "No strong dealer bias — trade on OI walls and price action alone",
+            "No strong dealer bias — rely on OI walls and price action",
         )
 
-    # 2. Wall distance
+    # Regime tile adjustment
+    if ctx.regime.regime == "PINNING":
+        score -= 10
+        risk(ctx.regime.detail)
+
+    # ── 3. Structural Room to Resistance ─────────────────────────────────────
     res_pct = ctx.walls.resistance_pct
     res = ctx.walls.resistance
-    if res and res_pct >= 2.5:
+    if res and res_pct >= room_thresh:
         score += 20
         add(
-            "Wall Distance",
+            "Structural Room",
             "pass",
-            f"+{res_pct:.1f}% to resistance",
-            f"Resistance at {res:,.0f} — ample room for momentum trade",
+            f"+{res_pct:.1f}% to resistance ({res:,.0f})",
+            f"Ample room for 1-week momentum trade — target {res:,.0f}",
         )
     elif res and res_pct >= 1.5:
-        score += 10
-        add(
-            "Wall Distance",
-            "pass",
-            f"+{res_pct:.1f}% to resistance",
-            f"Acceptable clearance. Target {res:,.0f} and monitor",
-        )
-    elif res:
-        score -= 10
-        add(
-            "Wall Distance",
-            "warn",
-            f"Only +{res_pct:.1f}% to resistance",
-            f"Wall at {res:,.0f} is too close — risk of pinning or reversal → Reduce size",
-        )
-    else:
-        add(
-            "Wall Distance",
-            "neutral",
-            "No resistance wall mapped",
-            "Load options data to get wall levels",
-        )
-
-    # 3. Expiry
-    dte = ctx.expiry.days_remaining
-    if dte >= 5:
-        score += 15
-        add(
-            "Expiry Timing",
-            "pass",
-            f"{dte} days to expiry",
-            "Plenty of time — expiry compression is not a concern",
-        )
-    elif dte >= 3:
-        add(
-            "Expiry Timing",
-            "warn",
-            f"{dte} days to expiry",
-            "Nearing expiry — watch for pinning behaviour Thu/Fri",
-        )
-    else:
-        score -= 20
-        add(
-            "Expiry Timing",
-            "fail",
-            f"Only {dte} days to expiry",
-            "High pin risk — reduce size or wait for next cycle",
-        )
-
-    # 4. PCR
-    pcr = ctx.walls.pcr_oi
-    if 0.9 <= pcr <= 1.3:
         score += 5
         add(
-            "PCR",
-            "pass",
-            f"PCR {pcr:.2f} — {ctx.walls.pcr_sentiment}",
-            "Balanced positioning — neither extreme fear nor greed",
+            "Structural Room",
+            "warn",
+            f"Only +{res_pct:.1f}% to resistance ({res:,.0f})",
+            f"Below {room_thresh:.0f}% threshold — cramped for swing long, monitor closely",
         )
-    elif pcr > 1.5:
+        risk(f"Only {res_pct:.1f}% room — resistance at {res:,.0f} may cap the move")
+    elif res:
+        score -= 15
+        add(
+            "Structural Room",
+            "fail",
+            f"Only +{res_pct:.1f}% — wall at {res:,.0f} too close",
+            "Do not take fresh swing long — wall will likely cap any move immediately",
+        )
+        risk(f"Resistance at {res:,.0f} only {res_pct:.1f}% away — no room to run")
+    else:
+        add(
+            "Structural Room",
+            "neutral",
+            "No resistance mapped",
+            "Load options data for wall levels",
+        )
+
+    # ── 4. Expiry / Max-Pain Risk Gate ────────────────────────────────────────
+    dte = ctx.expiry.days_remaining
+    if dte <= 1:
+        score -= 25
+        add(
+            "Expiry Gate",
+            "fail",
+            f"Expiry TODAY/TOMORROW ({dte}d)",
+            "Do NOT open new swing entries — intraday only until next cycle",
+        )
+        risk("Expiry imminent — no new swing entries")
+    elif dte <= 2:
+        score -= 20
+        add(
+            "Expiry Gate",
+            "fail",
+            f"Only {dte}d to expiry — HIGH pin risk",
+            "Avoid new positions — strong gamma pinning in effect",
+        )
+        risk(f"Only {dte}d to expiry — gamma pinning")
+    elif dte <= 4 and ctx.expiry.pin_risk == "HIGH":
+        score -= 12
+        add(
+            "Expiry Gate",
+            "warn",
+            f"{dte}d to expiry + HIGH pin risk near {ctx.walls.max_pain:,.0f}",
+            "Reduce size — spot near max pain with expiry close",
+        )
+        risk("High pin risk — spot near max pain with expiry approaching")
+    elif dte <= 4:
+        add(
+            "Expiry Gate",
+            "warn",
+            f"{dte}d to expiry — moderate caution",
+            "Watch for Thu/Fri pin compression near max pain",
+        )
+    else:
+        score += 12
+        add(
+            "Expiry Gate",
+            "pass",
+            f"{dte}d to expiry — LOW pin risk",
+            "Plenty of time — expiry compression not a concern",
+        )
+
+    # ── 5. PCR ────────────────────────────────────────────────────────────────
+    pcr = ctx.walls.pcr_oi
+    if pcr >= 1.5:
         score += 10
         add(
             "PCR",
             "pass",
             f"PCR {pcr:.2f} — heavy put buying",
-            "Heavy put buying = hedging, not conviction selling → supports upside",
+            "Heavy hedging activity → supports upside / floor below spot",
+        )
+    elif 0.9 <= pcr <= 1.3:
+        score += 5
+        add(
+            "PCR",
+            "pass",
+            f"PCR {pcr:.2f} — balanced",
+            "Balanced positioning — no extreme skew",
         )
     elif pcr < 0.7:
         score -= 10
         add(
             "PCR",
             "warn",
-            f"PCR {pcr:.2f} — low PCR",
-            "Complacency / aggressive call buying → watch for reversal",
+            f"PCR {pcr:.2f} — low / call-heavy",
+            "Aggressive call buying = complacency → watch for reversal",
         )
+        risk(f"Low PCR ({pcr:.2f}) — market may be complacent")
     else:
         add("PCR", "neutral", f"PCR {pcr:.2f}", "Neutral positioning")
 
+    # ── 6. Volatility State ───────────────────────────────────────────────────
+    if ps is not None:
+        vs = ps.vol_state
+        if vs == "SQUEEZE":
+            if ctx.regime.regime == "TREND-FRIENDLY":
+                score += 12
+                add(
+                    "Vol State",
+                    "pass",
+                    f"SQUEEZE ({ps.bb_width_pctl:.0f}th pctl)",
+                    "Compression + trend-friendly regime = coiled spring → very favorable for fresh momentum",
+                )
+            else:
+                score += 5
+                add(
+                    "Vol State",
+                    "pass",
+                    f"SQUEEZE ({ps.bb_width_pctl:.0f}th pctl)",
+                    "Bands compressing — breakout pending. Direction unclear — wait for confirmation",
+                )
+        elif vs == "EXPANDED":
+            if ctx.regime.regime == "PINNING":
+                score -= 8
+                add(
+                    "Vol State",
+                    "warn",
+                    f"EXPANDED ({ps.bb_width_pctl:.0f}th pctl)",
+                    "Expanded volatility + pinning regime = late and choppy — harvest or skip",
+                )
+                risk(
+                    "Late in volatility expansion with pinning regime — consider exiting"
+                )
+            else:
+                add(
+                    "Vol State",
+                    "neutral",
+                    f"EXPANDED ({ps.bb_width_pctl:.0f}th pctl)",
+                    "Volatility expanded — still in play but watch for mean reversion",
+                )
+        else:
+            add(
+                "Vol State",
+                "neutral",
+                f"NORMAL ({ps.bb_width_pctl:.0f}th pctl)",
+                "Volatility at normal levels — no edge from compression or expansion",
+            )
+
+    # ── 7. Williams %R Phase ──────────────────────────────────────────────────
+    if ps is not None and ps.wr_value is not None:
+        if not ps.wr_in_momentum:
+            # WR not in zone — gate is CLOSED
+            add(
+                "W%R Gate",
+                "fail",
+                f"W%R {ps.wr_value:.1f} — below -20 threshold",
+                "Entry gate CLOSED — wait for W%R to reclaim -20",
+            )
+            risk(f"W%R {ps.wr_value:.1f} — not in momentum zone")
+        else:
+            if ps.wr_phase == "FRESH":
+                score += 15
+                add(
+                    "W%R Gate",
+                    "pass",
+                    f"W%R {ps.wr_value:.1f} — FRESH momentum ({ps.wr_bars_since_cross50}b ago)",
+                    f"Fresh cross above -50 just {ps.wr_bars_since_cross50} bars ago — early in momentum phase",
+                )
+            elif ps.wr_phase == "DEVELOPING":
+                score += 8
+                add(
+                    "W%R Gate",
+                    "pass",
+                    f"W%R {ps.wr_value:.1f} — DEVELOPING ({ps.wr_bars_since_cross50}b since -50 cross)",
+                    "Mid-phase momentum — still valid, monitor for signs of exhaustion",
+                )
+            elif ps.wr_phase == "LATE":
+                score -= 5
+                add(
+                    "W%R Gate",
+                    "warn",
+                    f"W%R {ps.wr_value:.1f} — LATE phase ({ps.wr_bars_since_cross50}b since -50 cross)",
+                    "Late in momentum phase — risk of mean reversion, tighten stops",
+                )
+                risk(
+                    f"W%R late phase ({ps.wr_bars_since_cross50} bars since -50 cross) — reduce size"
+                )
+
+    # ── 8. Position State (BB) ────────────────────────────────────────────────
+    if ps is not None:
+        if ps.position_state == "MID_BAND_BROKEN":
+            score -= 15
+            add(
+                "BB State",
+                "fail",
+                "Mid-band broken — FULL EXIT zone",
+                "Price closed below 20-SMA — momentum leg has ended. Exit remaining position.",
+            )
+            risk("Mid-band broken — momentum leg complete, exit")
+        elif ps.position_state == "FIRST_DIP":
+            score -= 5
+            add(
+                "BB State",
+                "warn",
+                "First dip below upper band — PARTIAL EXIT zone",
+                "Scale out 50% here. Move stop to entry. Let remainder run to mid-band.",
+            )
+        elif ps.position_state == "RIDING_UPPER":
+            score += 5
+            add(
+                "BB State",
+                "pass",
+                "Riding upper band",
+                "Price holding upper band — momentum intact. Stay in position.",
+            )
+        elif ps.position_state == "CONSOLIDATING":
+            add(
+                "BB State",
+                "neutral",
+                "Consolidating between mid and upper",
+                "Pullback within uptrend. Hold or add on reclaim of upper band.",
+            )
+
+    # ── Final score + sizing ──────────────────────────────────────────────────
     score = max(0, min(100, score))
 
-    if score >= 75:
+    if score >= 78:
         label, color, sizing = "STRONG SETUP", "green", "FULL"
-    elif score >= 55:
+    elif score >= 58:
         label, color, sizing = "PROCEED", "emerald", "FULL"
     elif score >= 40:
         label, color, sizing = "CAUTION", "yellow", "HALF"
     else:
         label, color, sizing = "AVOID", "red", "SKIP"
 
-    # Step 1 of workflow: GEX Positive ALWAYS means HALF size regardless of score
-    # The commentary already says "size down 50%" — viability must agree.
+    # Hard overrides
+    # Daily bearish → NO new longs
+    if ps is not None and ps.daily_bias == "BEARISH":
+        sizing = "SKIP"
+        label = "AVOID"
+        color = "red"
+
+    # GEX Positive caps at HALF
     if ctx.gex.regime == "Positive" and sizing == "FULL":
         sizing = "HALF"
-        # Downgrade label if still showing STRONG/PROCEED
         if label in ("STRONG SETUP", "PROCEED"):
-            label = "CAUTION"
-            color = "yellow"
+            label, color = "CAUTION", "yellow"
 
-    # Step 3 of workflow: HIGH pin risk → force HALF or SKIP
+    # Regime cap
+    if ctx.regime.size_cap == "HALF" and sizing == "FULL":
+        sizing = "HALF"
+
+    # HIGH pin risk caps at HALF
     if ctx.expiry.pin_risk == "HIGH" and sizing == "FULL":
         sizing = "HALF"
 
+    # WR not in zone → can't be FULL
+    if ps is not None and ps.wr_value is not None and not ps.wr_in_momentum:
+        if sizing == "FULL":
+            sizing = "HALF"
+
+    # Mid-band broken → exit, not entry
+    if ps is not None and ps.position_state == "MID_BAND_BROKEN":
+        if sizing in ("FULL", "HALF"):
+            sizing = "SKIP"
+            label = "AVOID"
+            color = "red"
+
     return Viability(
-        score=score, label=label, color=color, sizing=sizing, checklist=checklist
+        score=score,
+        label=label,
+        color=color,
+        sizing=sizing,
+        checklist=checklist,
+        risk_notes=risk_notes,
     )

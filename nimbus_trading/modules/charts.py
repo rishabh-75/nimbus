@@ -1,25 +1,23 @@
 """
-modules/charts.py  —  NIMBUS Emerald Slate
-==========================================
-Root-cause fixes vs broken versions:
-  1. Index → ISO string BEFORE any plotly call (eliminates 1970 x-axis / ns epoch bug)
-  2. BB fill uses polygon method (upper + reversed lower, toself)
-     — NOT tonexty (breaks when candlestick trace is between them)
-  3. Wall shapes use row=1, col=1 explicitly
-  4. Wall annotations use yref="y1" (not "y") to pin to candle panel
-  5. WR hlines use yref="y3" string form (not add_hline which can't specify subplot)
+modules/charts.py — NIMBUS Emerald Slate
+Chart: 3-row Plotly (Candles+BB | Volume | W%R)
+
+Key implementation notes:
+  - Index converted to tz-naive Python datetimes for Plotly (avoids 1970 epoch bug)
+  - rangebreaks hide weekends + non-NSE hours (09:15–15:30 IST)
+  - BB bands: neutral grey (TradingView reference)
+  - Position state annotation on latest candle
 """
 
 from __future__ import annotations
 from typing import Optional
-
+import datetime as dt
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-
 from modules.analytics import OptionsContext
+from modules.indicators import PriceSignals
 
-# ── Palette ───────────────────────────────────────────────────────────────────
 BG = "#080c10"
 SURFACE = "#0d1117"
 BORDER = "#1e2937"
@@ -31,36 +29,48 @@ WHITE = "#e2e8f0"
 MUTED = "#64748b"
 UP = "#26a69a"
 DOWN = "#ef5350"
-
-BB_LINE = "rgba(200,200,220,0.60)"  # neutral grey — TradingView style
+BB_LINE = "rgba(200,200,220,0.60)"
 BB_FILL = "rgba(200,200,220,0.05)"
 BB_MID = "rgba(200,200,220,0.30)"
 
+# State → colour mapping for annotation dot
+STATE_COLORS = {
+    "RIDING_UPPER": EM,
+    "CONSOLIDATING": GOLD,
+    "FIRST_DIP": GOLD,
+    "MID_BAND_BROKEN": RED,
+}
 
-def _to_str_index(df: pd.DataFrame) -> list:
+
+def _to_naive_datetimes(df: pd.DataFrame) -> list:
     """
-    Convert any DatetimeIndex variant to ISO strings before passing to Plotly.
-    Handles: tz-aware, tz-naive, datetime64[ns], datetime64[s], DatetimeIndex.
-    This eliminates the 1970-epoch bug caused by nanosecond timestamps.
+    Convert DataFrame index to a list of tz-naive Python datetime objects.
+    This is the safest format for Plotly — avoids the int64-nanosecond epoch bug.
     """
-    try:
-        idx = pd.DatetimeIndex(df.index)
-        # tz_convert(None) = convert to UTC and strip tz (safe for tz-aware)
-        # For tz-naive, this is a no-op
-        if idx.tzinfo is not None:
-            idx = idx.tz_convert(None)
-        return idx.strftime("%Y-%m-%d %H:%M").tolist()
-    except Exception:
-        # Last resort: stringify whatever we have
-        return [str(x)[:16] for x in df.index]
+    idx = pd.DatetimeIndex(df.index)
+    if idx.tzinfo is not None:
+        idx = idx.tz_convert("Asia/Kolkata").tz_localize(None)
+    return idx.to_pydatetime().tolist()
+
+
+def _rangebreaks():
+    """
+    Plotly rangebreaks to hide non-NSE hours and weekends.
+    NSE market: Mon-Fri 09:15 – 15:30 IST.
+    bounds=[15.5, 9.25] means: hide from 15:30 to 09:15 next day (fractional hours).
+    """
+    return [
+        dict(bounds=["sat", "mon"]),  # hide weekends
+        dict(bounds=[15.5, 9.25], pattern="hour"),  # hide overnight
+    ]
 
 
 def main_chart(
     price_df: pd.DataFrame,
     ctx: Optional[OptionsContext] = None,
+    ps: Optional[PriceSignals] = None,
     symbol: str = "NIFTY",
 ) -> go.Figure:
-
     if price_df is None or price_df.empty:
         fig = go.Figure()
         fig.update_layout(
@@ -83,7 +93,7 @@ def main_chart(
         return fig
 
     df = price_df.copy()
-    xs = _to_str_index(df)  # ← ALL traces share this string x-axis
+    xs = _to_naive_datetimes(df)
 
     has_vol = "Volume" in df.columns and df["Volume"].fillna(0).sum() > 0
     has_wr = "WR" in df.columns
@@ -97,7 +107,7 @@ def main_chart(
         vertical_spacing=0.008,
     )
 
-    # ── Row 1 · Candlesticks ──────────────────────────────────────────────────
+    # ── Row 1: Candlesticks ───────────────────────────────────────────────────
     fig.add_trace(
         go.Candlestick(
             x=xs,
@@ -119,13 +129,13 @@ def main_chart(
         col=1,
     )
 
-    # ── Row 1 · Bollinger Bands (neutral grey, polygon fill) ─────────────────
+    # ── Row 1: Bollinger Bands ────────────────────────────────────────────────
     if has_bb:
         upper = df["BB_Upper"].ffill().tolist()
         lower = df["BB_Lower"].ffill().tolist()
         mid = df["BB_Mid"].ffill().tolist()
 
-        # Filled band: upper path forward + lower path reversed = closed polygon
+        # Polygon fill between bands
         fig.add_trace(
             go.Scatter(
                 x=xs + xs[::-1],
@@ -139,36 +149,36 @@ def main_chart(
             row=1,
             col=1,
         )
-        # Upper band line
         fig.add_trace(
             go.Scatter(
                 x=xs,
                 y=upper,
                 line=dict(color=BB_LINE, width=1.2),
+                connectgaps=True,
                 hovertemplate="BB Up: %{y:.1f}<extra></extra>",
                 showlegend=False,
             ),
             row=1,
             col=1,
         )
-        # Lower band line
         fig.add_trace(
             go.Scatter(
                 x=xs,
                 y=lower,
                 line=dict(color=BB_LINE, width=1.2),
+                connectgaps=True,
                 hovertemplate="BB Lo: %{y:.1f}<extra></extra>",
                 showlegend=False,
             ),
             row=1,
             col=1,
         )
-        # Mid line
         fig.add_trace(
             go.Scatter(
                 x=xs,
                 y=mid,
                 line=dict(color=BB_MID, width=0.9, dash="dot"),
+                connectgaps=True,
                 hovertemplate="BB Mid: %{y:.1f}<extra></extra>",
                 showlegend=False,
             ),
@@ -176,11 +186,42 @@ def main_chart(
             col=1,
         )
 
-    # ── Row 1 · OI wall lines ─────────────────────────────────────────────────
+    # ── Row 1: Daily SMA line (if available) ──────────────────────────────────
+    if ps and ps.daily_sma:
+        sma_val = ps.daily_sma
+        sma_color = (
+            EM
+            if ps.daily_bias == "BULLISH"
+            else (RED if ps.daily_bias == "BEARISH" else GOLD)
+        )
+        fig.add_shape(
+            type="line",
+            xref="paper",
+            yref="y1",
+            x0=0,
+            x1=1,
+            y0=sma_val,
+            y1=sma_val,
+            line=dict(color=sma_color, width=1.0, dash="dash"),
+        )
+        fig.add_annotation(
+            xref="paper",
+            yref="y1",
+            x=0.01,
+            y=sma_val,
+            text=f"D·SMA {sma_val:,.0f}",
+            showarrow=False,
+            font=dict(color=sma_color, size=8, family="JetBrains Mono,monospace"),
+            xanchor="left",
+            yanchor="bottom",
+            bgcolor="rgba(8,12,16,0.8)",
+        )
+
+    # ── Row 1: OI wall lines ──────────────────────────────────────────────────
     if ctx is not None:
         _add_wall_lines(fig, ctx)
 
-    # ── Row 2 · Volume ────────────────────────────────────────────────────────
+    # ── Row 2: Volume ─────────────────────────────────────────────────────────
     if has_vol:
         closes = df["Close"].values
         opens = df["Open"].values
@@ -203,15 +244,15 @@ def main_chart(
     else:
         fig.add_trace(go.Scatter(x=[], y=[], showlegend=False), row=2, col=1)
 
-    # ── Row 3 · Williams %R ───────────────────────────────────────────────────
+    # ── Row 3: Williams %R ────────────────────────────────────────────────────
     if has_wr:
         wr_vals = df["WR"].ffill().tolist()
-
         fig.add_trace(
             go.Scatter(
                 x=xs,
                 y=wr_vals,
                 line=dict(color=EM, width=1.6),
+                connectgaps=True,
                 hovertemplate="W%%R: %{y:.1f}<extra></extra>",
                 showlegend=False,
             ),
@@ -219,13 +260,12 @@ def main_chart(
             col=1,
         )
 
-        # Momentum zone fill: shade above -20
+        # Momentum zone fill (above -20 = green)
         above = [max(v, -20) for v in wr_vals]
-        fill_y = above + [-20] * len(xs)
         fig.add_trace(
             go.Scatter(
                 x=xs + xs[::-1],
-                y=fill_y,
+                y=above + [-20] * len(xs),
                 fill="toself",
                 fillcolor="rgba(16,185,129,0.10)",
                 line=dict(width=0),
@@ -236,19 +276,18 @@ def main_chart(
             col=1,
         )
 
-        # Reference lines on WR panel (yref="y3" = third subplot y-axis)
+        # Reference lines on WR panel
         for y_val, color in [(-20, EM), (-50, BORDER), (-80, RED)]:
             fig.add_shape(
                 type="line",
-                xref="x3",
+                xref="paper",
                 yref="y3",
-                x0=xs[0],
-                x1=xs[-1],
+                x0=0,
+                x1=1,
                 y0=y_val,
                 y1=y_val,
                 line=dict(color=color, width=0.8, dash="dash"),
             )
-        # Labels for WR thresholds
         for y_val, color, lbl in [(-20, EM, "-20"), (-80, RED, "-80")]:
             fig.add_annotation(
                 xref="paper",
@@ -264,15 +303,42 @@ def main_chart(
     else:
         fig.add_trace(go.Scatter(x=[], y=[], showlegend=False), row=3, col=1)
 
+    # ── Position state annotation ─────────────────────────────────────────────
+    if ps and ps.position_state not in ("UNKNOWN", None):
+        state_labels = {
+            "RIDING_UPPER": "◉ RIDING UPPER",
+            "FIRST_DIP": "◉ FIRST DIP",
+            "MID_BAND_BROKEN": "◉ MID-BAND BROKEN",
+            "CONSOLIDATING": "◉ CONSOLIDATING",
+        }
+        lbl = state_labels.get(ps.position_state, ps.position_state)
+        col = STATE_COLORS.get(ps.position_state, MUTED)
+        fig.add_annotation(
+            xref="paper",
+            yref="paper",
+            x=0.01,
+            y=0.98,
+            text=f"<b style='font-size:9px'>{lbl}</b>",
+            showarrow=False,
+            font=dict(color=col, size=9, family="JetBrains Mono,monospace"),
+            xanchor="left",
+            yanchor="top",
+            bgcolor="rgba(8,12,16,0.85)",
+            bordercolor=col,
+            borderwidth=1,
+            borderpad=3,
+        )
+
     # ── Layout ────────────────────────────────────────────────────────────────
     xax = dict(
         gridcolor=BORDER,
         color=MUTED,
         tickfont=dict(size=8, color=MUTED),
         rangeslider=dict(visible=False),
+        type="date",
         showgrid=True,
         showline=False,
-        # Don't set type="date" — we're passing strings
+        rangebreaks=_rangebreaks(),
     )
 
     fig.update_layout(
@@ -285,17 +351,14 @@ def main_chart(
         title=dict(
             text=(
                 f"<b style='color:{WHITE}'>{symbol}</b>"
-                f"<span style='color:{MUTED}'>"
-                f" · 4H · BB(20,1σ) · W%R(50) · Vol</span>"
+                f"<span style='color:{MUTED}'> · 4H · BB(20,1σ) · W%R(50) · Vol</span>"
             ),
             font=dict(size=11),
             x=0.01,
         ),
         hovermode="x unified",
         hoverlabel=dict(
-            bgcolor=SURFACE,
-            bordercolor=BORDER,
-            font=dict(color=WHITE, size=10),
+            bgcolor=SURFACE, bordercolor=BORDER, font=dict(color=WHITE, size=10)
         ),
         xaxis=xax,
         xaxis2=xax,
@@ -315,7 +378,6 @@ def main_chart(
             tickfont=dict(size=7, color=MUTED),
             side="right",
             showgrid=False,
-            showline=False,
         ),
         yaxis3=dict(
             gridcolor=BORDER,
@@ -325,18 +387,12 @@ def main_chart(
             side="right",
             range=[-105, 5],
             tickvals=[-20, -50, -80],
-            showline=False,
         ),
     )
     return fig
 
 
 def _add_wall_lines(fig: go.Figure, ctx: OptionsContext) -> None:
-    """
-    Horizontal OI wall / max pain / GEX HVL lines on the candle panel (row 1).
-    Shapes: row=1, col=1 to pin to first subplot.
-    Annotations: yref="y1" to pin to first subplot y-axis.
-    """
     levels = [
         (
             ctx.walls.resistance,
@@ -369,7 +425,7 @@ def _add_wall_lines(fig: go.Figure, ctx: OptionsContext) -> None:
         fig.add_shape(
             type="line",
             xref="paper",
-            yref="y1",  # y1 = first subplot axis
+            yref="y1",
             x0=0,
             x1=1,
             y0=y_val,
@@ -378,7 +434,7 @@ def _add_wall_lines(fig: go.Figure, ctx: OptionsContext) -> None:
         )
         fig.add_annotation(
             xref="paper",
-            yref="y1",  # y1 = first subplot axis
+            yref="y1",
             x=1.01,
             y=y_val,
             text=f"<b>{label}</b>",
@@ -396,7 +452,6 @@ def _add_wall_lines(fig: go.Figure, ctx: OptionsContext) -> None:
 def gex_expiry_bar(ctx: OptionsContext) -> go.Figure:
     data = ctx.gex.by_expiry
     fig = go.Figure()
-
     if not data:
         fig.add_annotation(
             text="No GEX data",
@@ -426,7 +481,6 @@ def gex_expiry_bar(ctx: OptionsContext) -> go.Figure:
                 hovertemplate="<b>%{x}</b><br>%{y:,.0f}M<extra></extra>",
             )
         )
-
     fig.update_layout(
         paper_bgcolor=BG,
         plot_bgcolor=SURFACE,

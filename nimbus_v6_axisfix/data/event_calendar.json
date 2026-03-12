@@ -1,0 +1,14 @@
+[
+  {
+    "date": "2026-03-27",
+    "event": "NIFTY Monthly Expiry",
+    "symbols": ["NIFTY", "BANKNIFTY"],
+    "impact": "HIGH"
+  },
+  {
+    "date": "2026-04-09",
+    "event": "RBI Monetary Policy",
+    "symbols": ["ALL"],
+    "impact": "HIGH"
+  }
+]

@@ -95,6 +95,10 @@ hr{border-color:var(--border)!important;margin:6px 0!important}
 .alert-warn{background:rgba(245,158,11,.10);border:1px solid rgba(245,158,11,.35);border-left:3px solid var(--gold);border-radius:4px;padding:8px 14px;font-size:.72rem;margin:4px 0;color:#fcd34d}
 .wl-row{display:grid;grid-template-columns:100px 90px 60px 80px 100px 60px 60px 60px 50px;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:.72rem}
 .wl-header{color:var(--muted);font-size:.54rem;letter-spacing:.08em;text-transform:uppercase}
+/* Refresh button — fixed width regardless of sidebar state */
+div[data-testid="column"]:last-child > div > div[data-testid="stButton"] > button {
+  min-width:88px!important;max-width:88px!important;white-space:nowrap!important;overflow:hidden!important;
+}
 </style>
 """,
     unsafe_allow_html=True,
@@ -143,6 +147,7 @@ _DEFAULTS = dict(
     scan_ts=None,
     scan_symbols_count=0,
     active_tab=0,
+    _switch_to_dashboard=False,
     # Watchlist
     watchlist=None,
 )
@@ -264,15 +269,41 @@ with st.sidebar:
             if st.session_state["symbol"] in SYMS
             else 0
         ),
+        key="sym_dropdown",
     )
-    custom = st.text_input(
-        "Custom symbol", placeholder="e.g. NESTLEIND", label_visibility="collapsed"
-    )
-    new_sym = custom.strip().upper() if custom.strip() else sym_sel
+
+    # Custom symbol — separate text input + Go button so entry is explicit
+    _c1, _c2 = st.columns([4, 1])
+    with _c1:
+        custom = st.text_input(
+            "Custom symbol",
+            placeholder="e.g. NESTLEIND",
+            label_visibility="collapsed",
+            key="custom_sym_input",
+        )
+    with _c2:
+        custom_go = st.button(
+            "→",
+            key="custom_sym_go",
+            help="Load custom symbol",
+            use_container_width=True,
+        )
+
+    # Determine active symbol: custom Go button wins, otherwise dropdown
+    if custom_go and custom.strip():
+        new_sym = custom.strip().upper()
+    elif not custom.strip():
+        # Dropdown changed (no custom text)
+        new_sym = sym_sel
+    else:
+        # There's text in the box but Go wasn't pressed → keep current symbol
+        new_sym = st.session_state["symbol"]
+
     if new_sym != st.session_state["symbol"]:
         st.session_state["symbol"] = new_sym
         st.session_state["options_df"] = pd.DataFrame()
         st.session_state["last_refresh"] = None
+        st.rerun()  # Force full pipeline re-execution with new symbol
 
     st.divider()
     st.session_state["lot_size"] = st.number_input(
@@ -371,7 +402,7 @@ chg_html = (
 # ══════════════════════════════════════════════════════════════════════════════
 # HEADER (above tabs — always visible)
 # ══════════════════════════════════════════════════════════════════════════════
-hdr_col, ref_col = st.columns([11, 1])
+hdr_col, ref_col = st.columns([10, 1])
 with hdr_col:
     st.markdown(
         f"""
@@ -385,7 +416,7 @@ with hdr_col:
         unsafe_allow_html=True,
     )
 with ref_col:
-    if st.button("REFRESH", use_container_width=True):
+    if st.button("⟳ Refresh", use_container_width=False):
         run_pipeline(fetch_options=False)
         st.rerun()
 
@@ -394,6 +425,24 @@ with ref_col:
 # TABS
 # ══════════════════════════════════════════════════════════════════════════════
 tab_dash, tab_scan, tab_wl = st.tabs(["📊 Dashboard", "🔍 Scanner", "📋 Watchlist"])
+
+# ── Programmatic tab switch (triggered by Scanner "Open in Dashboard" button) ─
+if st.session_state.get("_switch_to_dashboard", False):
+    st.session_state["_switch_to_dashboard"] = False
+    import streamlit.components.v1 as _components
+
+    _components.html(
+        """
+    <script>
+    setTimeout(function(){
+      var tabs = window.parent.document.querySelectorAll('[data-baseweb="tab"]');
+      if (tabs && tabs[0]) { tabs[0].click(); }
+    }, 250);
+    </script>
+    """,
+        height=0,
+        scrolling=False,
+    )
 
 
 # ╔══════════════════════════════════════════════════════════════════════════════
@@ -716,7 +765,14 @@ with tab_scan:
     # ── Filter chip toggles ───────────────────────────────────────────────────
     fc1, fc2, fc3, fc4, fc5 = st.columns(5)
     with fc1:
-        f_mom = st.checkbox("Momentum (BB + W%R)", value=True, key="fc_mom")
+        st.checkbox(
+            "Momentum (BB + W%R)",
+            value=True,
+            disabled=True,
+            key="fc_mom",
+            help="Hard gate — always enforced. BB riding + W%R > −20 are non-negotiable entry conditions.",
+        )
+        f_mom = True  # always True — hard gate enforced in scan_universe()
     with fc2:
         f_str = st.checkbox("Structure (Room to Wall)", value=True, key="fc_str")
     with fc3:
@@ -759,7 +815,7 @@ with tab_scan:
         with st.spinner(f"Scanning {n_syms} symbols…"):
             raw_results = scan_universe(
                 symbols=syms_to_scan,
-                require_all_filters=False,  # we apply our own chip filters below
+                require_all_filters=req_all,  # honouring the UI toggle for non-hard-gate filters
                 min_viability=min_via,
                 progress_cb=_progress,
                 max_workers=8,
@@ -826,6 +882,7 @@ with tab_scan:
                     "DTE": str(r["dte"]) if r["dte"] else "—",
                     "Bias": r["daily_bias"],
                     "Vol": r["vol_state"],
+                    "Scanned": r.get("scan_timestamp", "—"),
                     "Reason": r["short_reason"],
                 }
             )
@@ -854,6 +911,11 @@ with tab_scan:
             column_config={
                 "Symbol": st.column_config.TextColumn("Symbol", width=80),
                 "Score": st.column_config.NumberColumn("Viability", format="%d"),
+                "Scanned": st.column_config.TextColumn(
+                    "Scanned at",
+                    width=90,
+                    help="Time this row's data was fetched. Dashboard re-fetches fresh data.",
+                ),
                 "Reason": st.column_config.TextColumn("Reason", width=280),
             },
         )
@@ -873,6 +935,7 @@ with tab_scan:
                 st.session_state["symbol"] = sel_sym
                 st.session_state["options_df"] = pd.DataFrame()
                 st.session_state["last_refresh"] = None
+                st.session_state["_switch_to_dashboard"] = True
                 run_pipeline(fetch_options=True)
                 st.rerun()
         with act3:
@@ -885,6 +948,16 @@ with tab_scan:
                     notes=row_data.get("short_reason", ""),
                 )
                 st.success(f"{sel_sym} added to watchlist.")
+
+        # Explain the expected score difference when opening dashboard
+        _sel_row = next((r for r in results if r["symbol"] == sel_sym), {})
+        _scan_ts = _sel_row.get("scan_timestamp", "")
+        st.caption(
+            f"ℹ️ Score shown is from scan data ({_scan_ts}). "
+            f"Dashboard always fetches the **latest** price bar — "
+            f"if conditions changed since the scan, the score will differ. "
+            f"This is correct behaviour, not a bug."
+        )
 
         # CSV export
         csv_buf = io.StringIO()
@@ -1022,7 +1095,7 @@ with tab_wl:
                     <span style='font-size:.7rem;color:#64748b'>Added {added}</span>
                     {"<span style='font-size:.8rem;color:#e2e8f0'>₹"+f"{lp:,.1f}"+"</span>" if lp else ""}
                     {"<span style='font-size:.75rem;font-weight:700;color:"+score_c+"'>Score "+str(l_score)+"</span>" if l_score is not None else ""}
-                    <span style='font-size:.72rem;color:"+state_c+"'>"+l_state.replace("_"," ")+"</span>
+                    <span style='font-size:.72rem;color:{state_c}'>{l_state.replace("_"," ")}</span>
                     {"<span style='font-size:.72rem'>W%R "+str(round(l_wr,0))+"</span>" if l_wr else ""}
                     {"<span style='font-size:.72rem'>Res "+f"{l_res:+.1f}%"+"</span>" if l_res else ""}
                     {"<span style='font-size:.72rem'>DTE "+str(l_dte)+"d</span>" if l_dte else ""}
@@ -1043,6 +1116,7 @@ with tab_wl:
                         st.session_state["symbol"] = sym
                         st.session_state["options_df"] = pd.DataFrame()
                         st.session_state["last_refresh"] = None
+                        st.session_state["_switch_to_dashboard"] = True
                         run_pipeline(fetch_options=True)
                         st.rerun()
                 with ba2:

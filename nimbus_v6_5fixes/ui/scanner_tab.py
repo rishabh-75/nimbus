@@ -3,16 +3,25 @@ ui/scanner_tab.py — Scanner with RS/IVR columns, styled filter chips,
 single-click populate, double-click navigate, stale banner.
 
 Patch v5.3 (FIX-ETF):
-  - Added "ETFs" universe option to combo box
-  - _on_run() routes "ETFs" → NSE_ETF_SYMBOLS list
-  - ETF rows display "ETF" in Regime column and "—" for DTE/Res%
-    (both already handled by existing display logic: None → "—")
+- Added "ETFs" universe option to combo box
+- _on_run() routes "ETFs" → NSE_ETF_SYMBOLS list
+- ETF rows display "ETF" in Regime column and "—" for DTE/Res%
+  (both already handled by existing display logic: None → "—")
+
+Phase 1 (FilingsWorker):
+- FilingsWorker imported and wired in _on_finished
+- _on_filing_enriched patches rows in-place, re-sorts TRAP to top
+- _on_filings_done hides progress label
 """
 
 from __future__ import annotations
-import logging, time
+
+import logging
+import time
 from typing import Optional
+
 import pandas as pd
+
 from PyQt6.QtCore import (
     Qt,
     QAbstractTableModel,
@@ -30,14 +39,13 @@ from PyQt6.QtWidgets import (
     QProgressBar,
     QTableView,
     QHeaderView,
-    QCheckBox,
     QSlider,
-    QSpinBox,
     QFrame,
     QFileDialog,
     QAbstractItemView,
 )
 from PyQt6.QtGui import QFont, QColor, QBrush
+
 from ui.theme import (
     BG,
     SURFACE,
@@ -55,7 +63,7 @@ from ui.theme import (
     FONT_UI,
     score_color,
 )
-from ui.workers import ScanWorker
+from ui.workers import ScanWorker, FilingsWorker
 from modules.data import NIFTY100_SYMBOLS, get_universe
 from modules.etf_analyzer import NSE_ETF_SYMBOLS  # FIX-ETF
 
@@ -72,8 +80,42 @@ _COLUMNS = [
     ("Regime", "gex_regime", 120),
     ("Res %", "pct_to_resistance", 75),
     ("DTE", "dte", 55),
+    ("Setup", "setup_type", 115),
     ("Reason", "short_reason", 0),  # stretch
 ]
+
+# Must match SetupType.value strings exactly from setup_classifier.py
+_SETUP_PRIORITY = {
+    "TRAP": 0,
+    "PREBREAKOUT": 1,
+    "CONFIRMED": 2,
+    "EVENTPLAY": 3,
+    "REVERSALWATCH": 4,
+    "OPTIONSONLY": 5,
+    "CONFIRMEDBREAKDOWN": 6,
+    "NEUTRAL": 7,
+}
+
+_SETUP_FG = {
+    "CONFIRMED": "#10B981",
+    "PREBREAKOUT": "#3B82F6",
+    "EVENTPLAY": "#34D399",
+    "TRAP": "#EF4444",
+    "REVERSALWATCH": "#F59E0B",
+    "CONFIRMEDBREAKDOWN": "#DC2626",
+    "OPTIONSONLY": "#8B5CF6",
+    "NEUTRAL": "#64748B",
+}
+
+_SETUP_BG = {
+    "CONFIRMED": QColor(16, 185, 129, 45),
+    "PREBREAKOUT": QColor(59, 130, 246, 45),
+    "EVENTPLAY": QColor(52, 211, 153, 35),
+    "TRAP": QColor(239, 68, 68, 60),
+    "REVERSALWATCH": QColor(245, 158, 11, 40),
+    "CONFIRMEDBREAKDOWN": QColor(220, 38, 38, 55),
+    "OPTIONSONLY": QColor(139, 92, 246, 40),
+}
 
 
 def _chip_style(checked: bool) -> str:
@@ -86,6 +128,11 @@ def _chip_style(checked: bool) -> str:
         f"QPushButton {{ background: #111827; border: 1px solid {BORDER}; "
         f"color: {MUTED}; border-radius: 4px; padding: 3px 10px; font-size: 9pt; }}"
     )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TABLE MODEL
+# ══════════════════════════════════════════════════════════════════════════════
 
 
 class ScanResultModel(QAbstractTableModel):
@@ -151,8 +198,7 @@ class ScanResultModel(QAbstractTableModel):
                 return f"+{pp:.1f}pp" if pp > 0 else f"{pp:.1f}pp"
             if col_key == "ivr_state":
                 return str(val) if val else "N/A"
-            # FIX-ETF: "ETF" regime label gets a friendly display
-            if col_key == "gex_regime" and val == "ETF":
+            if col_key == "gex_regime" and val == "ETF":  # FIX-ETF
                 return "ETF ✦"
             return str(val)
 
@@ -195,8 +241,9 @@ class ScanResultModel(QAbstractTableModel):
             if col_key == "ivr_state":
                 c = {"CHEAP": EM, "RICH": RED, "FAIR": MUTED, "N/A": MUTED}
                 return QBrush(QColor(c.get(str(val), MUTED)))
-            # FIX-ETF: ETF regime label in blue
-            if col_key == "gex_regime" and val == "ETF":
+            if col_key == "setup_type" and val:
+                return QBrush(QColor(_SETUP_FG.get(str(val), "#64748B")))
+            if col_key == "gex_regime" and val == "ETF":  # FIX-ETF
                 return QBrush(QColor(BLUE))
 
         if role == Qt.ItemDataRole.BackgroundRole:
@@ -205,6 +252,10 @@ class ScanResultModel(QAbstractTableModel):
                     return QBrush(QColor(16, 185, 129, 30))
                 elif val >= 50:
                     return QBrush(QColor(245, 158, 11, 25))
+            if col_key == "setup_type" and val:
+                bg = _SETUP_BG.get(str(val))
+                if bg:
+                    return QBrush(bg)
 
         if role == Qt.ItemDataRole.FontRole:
             if col_key in ("viability_score", "size_suggestion", "symbol"):
@@ -228,28 +279,35 @@ class ScanResultModel(QAbstractTableModel):
         return None
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# SCANNER TAB
+# ══════════════════════════════════════════════════════════════════════════════
+
+
 class ScannerTab(QWidget):
     row_clicked = pyqtSignal(str)  # double-click → open in dashboard
-    symbol_selected = pyqtSignal(str)  # single-click → populate sidebar
+    symbol_selected = pyqtSignal(str)  # single-click  → populate sidebar
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self._scan_worker: Optional[ScanWorker] = None
+        self._filings_worker: Optional[FilingsWorker] = None
         self._last_scan_ts: Optional[float] = None
         self._model = ScanResultModel()
         self._proxy = QSortFilterProxyModel()
         self._proxy.setSourceModel(self._model)
         self._build_ui()
 
+    # ── UI construction ───────────────────────────────────────────────────────
+
     def _build_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(8, 6, 8, 6)
         layout.setSpacing(4)
 
-        # ── Controls row ──────────────────────────────────────────────────────
+        # Controls row
         ctrl = QHBoxLayout()
         ctrl.setSpacing(6)
-
         self._run_btn = QPushButton("Run Scanner")
         self._run_btn.setObjectName("primary")
         self._run_btn.setFixedHeight(28)
@@ -259,7 +317,6 @@ class ScannerTab(QWidget):
 
         ctrl.addWidget(self._lbl("Universe:"))
         self._universe_combo = QComboBox()
-        # FIX-ETF: added "ETFs" universe option
         self._universe_combo.addItems(["NIFTY 100", "F&O Full", "ETFs", "Watchlist"])
         self._universe_combo.setFixedWidth(110)
         self._universe_combo.setFixedHeight(26)
@@ -278,7 +335,6 @@ class ScannerTab(QWidget):
             lambda v: self._min_score_lbl.setText(str(v))
         )
         ctrl.addWidget(self._min_score_lbl)
-
         ctrl.addStretch(1)
 
         self._export_btn = QPushButton("Export CSV")
@@ -287,10 +343,9 @@ class ScannerTab(QWidget):
         ctrl.addWidget(self._export_btn)
         layout.addLayout(ctrl)
 
-        # ── Filter chips ──────────────────────────────────────────────────────
+        # Filter chips
         chips = QHBoxLayout()
         chips.setSpacing(4)
-
         mom = QPushButton("Momentum (BB+W%R)")
         mom.setCheckable(True)
         mom.setChecked(True)
@@ -298,7 +353,6 @@ class ScannerTab(QWidget):
         mom.setStyleSheet(_chip_style(True))
         mom.setToolTip("Hard gate: cannot be disabled")
         chips.addWidget(mom)
-
         self._filter_checks = {}
         for name in ("Structure", "Regime", "Expiry", "Bias"):
             btn = QPushButton(name)
@@ -308,7 +362,6 @@ class ScannerTab(QWidget):
             btn.toggled.connect(lambda c, b=btn: b.setStyleSheet(_chip_style(c)))
             chips.addWidget(btn)
             self._filter_checks[name] = btn
-
         self._req_all = QPushButton("Require All")
         self._req_all.setCheckable(True)
         self._req_all.setChecked(False)
@@ -317,11 +370,10 @@ class ScannerTab(QWidget):
             lambda c: self._req_all.setStyleSheet(_chip_style(c))
         )
         chips.addWidget(self._req_all)
-
         chips.addStretch(1)
         layout.addLayout(chips)
 
-        # ── Stale banner ──────────────────────────────────────────────────────
+        # Stale banner
         self._stale_banner = QFrame()
         self._stale_banner.setStyleSheet(
             "QFrame { background: #1A1A0D; border-left: 4px solid #F59E0B; padding: 4px 10px; }"
@@ -340,7 +392,7 @@ class ScannerTab(QWidget):
         self._stale_banner.setVisible(False)
         layout.addWidget(self._stale_banner)
 
-        # ── Progress ──────────────────────────────────────────────────────────
+        # Progress
         pr = QHBoxLayout()
         self._progress = QProgressBar()
         self._progress.setFixedHeight(14)
@@ -353,7 +405,7 @@ class ScannerTab(QWidget):
         pr.addWidget(self._progress_lbl)
         layout.addLayout(pr)
 
-        # ── Table ─────────────────────────────────────────────────────────────
+        # Table
         self._table = QTableView()
         self._table.setModel(self._proxy)
         self._table.setSortingEnabled(True)
@@ -364,7 +416,6 @@ class ScannerTab(QWidget):
         self._table.verticalHeader().setDefaultSectionSize(32)
         self._table.setShowGrid(False)
         self._table.setMouseTracking(True)
-
         hdr = self._table.horizontalHeader()
         hdr.setMouseTracking(True)
         hdr.setMinimumSectionSize(30)
@@ -377,19 +428,17 @@ class ScannerTab(QWidget):
                 hdr.resizeSection(i, w)
             else:
                 hdr.setSectionResizeMode(i, QHeaderView.ResizeMode.Stretch)
-
         self._table.clicked.connect(self._on_row_single_click)
         self._table.doubleClicked.connect(self._on_row_double_click)
         layout.addWidget(self._table, stretch=1)
 
-        # ── Actions ───────────────────────────────────────────────────────────
+        # Actions
         actions = QHBoxLayout()
         actions.setSpacing(8)
         self._open_btn = QPushButton("Open in Dashboard")
         self._open_btn.setFixedHeight(26)
         self._open_btn.clicked.connect(self._on_open_in_dashboard)
         actions.addWidget(self._open_btn)
-
         self._count_lbl = QLabel("")
         self._count_lbl.setFont(QFont(FONT_MONO, 8))
         self._count_lbl.setStyleSheet(f"color: {MUTED};")
@@ -403,9 +452,13 @@ class ScannerTab(QWidget):
         l.setStyleSheet(f"color: {MUTED};")
         return l
 
-    # ══════════════════════════════════════════════════════════════════════════
+    # ── Scan flow ─────────────────────────────────────────────────────────────
+
     def _on_run(self):
+        # Cancel both workers if either is running
         if self._scan_worker and self._scan_worker.isRunning():
+            if self._filings_worker and self._filings_worker.isRunning():
+                self._filings_worker.cancel()
             self._scan_worker.cancel()
             return
 
@@ -415,7 +468,7 @@ class ScannerTab(QWidget):
         elif universe == "F&O Full":
             symbols = get_universe()
         elif universe == "ETFs":  # FIX-ETF
-            symbols = list(NSE_ETF_SYMBOLS)  # FIX-ETF
+            symbols = list(NSE_ETF_SYMBOLS)
         else:
             from ui.watchlist_db import load_watchlist
 
@@ -452,14 +505,50 @@ class ScannerTab(QWidget):
 
     def _on_finished(self, results):
         self._progress.setVisible(False)
-        self._progress_lbl.setVisible(False)
         self._run_btn.setText("Run Scanner")
         self._last_scan_ts = time.time()
 
         total = getattr(self._scan_worker, "total_scanned", len(results))
         self._count_lbl.setText(f"{len(results)} results from {total} symbols scanned")
-        self._proxy.sort(2, Qt.SortOrder.DescendingOrder)
+
+        self._model._data.sort(
+            key=lambda r: (
+                _SETUP_PRIORITY.get(r.get("setup_type", "NEUTRAL"), 7),
+                -r.get("viability_score", 0),
+            )
+        )
+        self._model.layoutChanged.emit()
         logger.info("Scan complete: %d results", len(results))
+
+        # ── Start FilingsWorker enrichment pass ───────────────────────────────
+        if results:
+            self._filings_worker = FilingsWorker(results)
+            self._filings_worker.row_enriched.connect(self._on_filing_enriched)
+            self._filings_worker.finished.connect(self._on_filings_done)
+            self._filings_worker.start()
+            self._progress_lbl.setVisible(True)
+            self._progress_lbl.setText(f"Fetching filings for {len(results)} symbols…")
+
+    # ── FilingsWorker callbacks ───────────────────────────────────────────────
+
+    def _on_filing_enriched(self, symbol: str, updated: dict):
+        for row in self._model._data:
+            if row.get("symbol") == symbol:
+                row.update(updated)
+                break
+        self._model._data.sort(
+            key=lambda r: (
+                _SETUP_PRIORITY.get(r.get("setup_type", "NEUTRAL"), 7),
+                -r.get("viability_score", 0),
+            )
+        )
+        self._model.layoutChanged.emit()
+
+    def _on_filings_done(self):
+        self._progress_lbl.setVisible(False)
+        logger.info("FilingsWorker enrichment complete")
+
+    # ── Table interaction ─────────────────────────────────────────────────────
 
     def _on_row_single_click(self, index):
         src = self._proxy.mapToSource(index)

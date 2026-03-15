@@ -6,6 +6,7 @@ NIMBUS QMainWindow: sidebar (fixed 220px) + QTabWidget (3 tabs).
 Phase 1: DataManager wired, sidebar signals connected, status bar live.
 Symbol change → immediate pipeline execution (Lesson 8.6).
 """
+
 from __future__ import annotations
 
 import datetime
@@ -14,8 +15,14 @@ from typing import Optional
 
 from PyQt6.QtCore import Qt, QSize, QSettings
 from PyQt6.QtWidgets import (
-    QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
-    QTabWidget, QLabel, QStatusBar, QInputDialog,
+    QMainWindow,
+    QWidget,
+    QHBoxLayout,
+    QVBoxLayout,
+    QTabWidget,
+    QLabel,
+    QStatusBar,
+    QInputDialog,
 )
 from PyQt6.QtGui import QShortcut, QKeySequence
 
@@ -70,6 +77,7 @@ class MainWindow(QMainWindow):
 
         # ── Auto-load initial symbol after window shows ───────────────────────
         from PyQt6.QtCore import QTimer
+
         QTimer.singleShot(500, self._auto_load_initial)
 
         # ── Keyboard shortcuts (§6.2) ─────────────────────────────────────────
@@ -89,6 +97,7 @@ class MainWindow(QMainWindow):
 
         # Validate Kite session after UI is up
         from PyQt6.QtCore import QTimer as QT2
+
         QT2.singleShot(1500, self._kite_mgr.validate_on_startup)
 
         logger.info("MainWindow initialised — Phase 7 ready")
@@ -126,14 +135,14 @@ class MainWindow(QMainWindow):
 
         # Phase 2: real Dashboard tab
         self._dashboard_tab = DashboardTab(self)
-        self._scanner_tab   = ScannerTab(self)
+        self._scanner_tab = ScannerTab(self)
         self._watchlist_tab = WatchlistTab(self)
-        self._context_tab   = MarketContextTab(self)
+        self._context_tab = MarketContextTab(self)
 
         self.tabs.addTab(self._dashboard_tab, "Dashboard")
-        self.tabs.addTab(self._scanner_tab,   "Scanner")
-        self.tabs.addTab(self._watchlist_tab,  "Watchlist")
-        self.tabs.addTab(self._context_tab,    "Market Context")
+        self.tabs.addTab(self._scanner_tab, "Scanner")
+        self.tabs.addTab(self._watchlist_tab, "Watchlist")
+        self.tabs.addTab(self._context_tab, "Market Context")
 
         root.addWidget(self.tabs, stretch=1)
 
@@ -184,6 +193,7 @@ class MainWindow(QMainWindow):
         self.data_mgr.context_updated.connect(self._dashboard_tab.on_context_updated)
         self.data_mgr.ps_updated.connect(self._dashboard_tab.on_ps_updated)
         self.data_mgr.spot_updated.connect(self._dashboard_tab.on_spot_updated)
+        self.data_mgr.filing_ready.connect(self._dashboard_tab.on_filing_updated)
 
         # DataManager → analytics complete (logged)
         self.data_mgr.context_updated.connect(self._on_context_updated)
@@ -221,6 +231,7 @@ class MainWindow(QMainWindow):
 
         # Update lot size display
         from modules.data import NSE_LOT_SIZES
+
         lot = NSE_LOT_SIZES.get(symbol, 75)
         self.sidebar.set_lot_size(lot)
 
@@ -248,7 +259,7 @@ class MainWindow(QMainWindow):
         if state == "LIVE":
             ts = self.data_mgr.last_refresh_time()
             nxt = self.data_mgr.next_refresh_time()
-            ts_str  = ts.strftime("%H:%M:%S")  if ts  else "—"
+            ts_str = ts.strftime("%H:%M:%S") if ts else "—"
             nxt_str = nxt.strftime("%H:%M:%S") if nxt else "—"
             spot_str = f"{spot:,.2f}" if spot > 0 else "—"
             self._set_status(
@@ -295,9 +306,14 @@ class MainWindow(QMainWindow):
     def _on_context_updated(self, symbol: str, ctx):
         """Analytics complete — log summary. Dashboard wiring in Phase 3."""
         v = ctx.viability
+        regime_str = getattr(getattr(ctx, "regime", None), "regime", "ETF")
         logger.info(
             "Context ready: %s — score=%d sizing=%s label=%s regime=%s",
-            symbol, v.score, v.sizing, v.label, ctx.regime.regime,
+            symbol,
+            v.score,
+            v.sizing,
+            v.label,
+            regime_str,
         )
         self.sidebar.set_refresh_enabled(True)
 
@@ -330,7 +346,7 @@ class MainWindow(QMainWindow):
     def _set_status(self, state: str, message: str):
         """Update status bar dot + label."""
         colors = {
-            "LIVE":  EM,
+            "LIVE": EM,
             "STALE": GOLD,
             "ERROR": RED,
             "READY": MUTED,
@@ -423,8 +439,9 @@ class MainWindow(QMainWindow):
         # No banner for missing kiteconnect (it's optional)
         # Show banner only if session was previously valid
         if "expired" in msg.lower() or "invalid" in msg.lower():
-            self._set_status("STALE",
-                f"POLLING  |  yfinance 5min refresh  |  Kite: {msg}")
+            self._set_status(
+                "STALE", f"POLLING  |  yfinance 5min refresh  |  Kite: {msg}"
+            )
 
     def _on_ticker_connected(self):
         """KiteTicker WebSocket connected."""
@@ -432,15 +449,17 @@ class MainWindow(QMainWindow):
         symbol = self.data_mgr.active_symbol
         spot = self.data_mgr.spot
         spot_str = f"{spot:,.2f}" if spot > 0 else "—"
-        self._set_status("LIVE",
-            f"LIVE  |  {symbol} {spot_str}  |  KiteTicker connected")
+        self._set_status(
+            "LIVE", f"LIVE  |  {symbol} {spot_str}  |  KiteTicker connected"
+        )
         logger.info("KiteTicker connected")
 
     def _on_ticker_disconnected(self, reason: str):
         """KiteTicker disconnected — fall back to yfinance."""
         self._kite_connected = False
-        self._set_status("STALE",
-            f"POLLING  |  yfinance 5min refresh  |  Ticker: {reason}")
+        self._set_status(
+            "STALE", f"POLLING  |  yfinance 5min refresh  |  Ticker: {reason}"
+        )
         logger.warning("KiteTicker disconnected: %s", reason)
 
     def _on_tick_received(self, ticks: list):
@@ -465,8 +484,9 @@ class MainWindow(QMainWindow):
         if ticks and self._kite_connected:
             ltp = ticks[-1].get("last_price", 0)
             symbol = self.data_mgr.active_symbol
-            self._set_status("LIVE",
-                f"LIVE  |  {symbol} {ltp:,.2f}  |  KiteTicker connected")
+            self._set_status(
+                "LIVE", f"LIVE  |  {symbol} {ltp:,.2f}  |  KiteTicker connected"
+            )
 
     def _on_kite_reauth_clicked(self):
         """User clicked re-auth button — open browser and prompt for token."""
@@ -474,7 +494,8 @@ class MainWindow(QMainWindow):
         if not url:
             return
         token, ok = QInputDialog.getText(
-            self, "Kite Re-Authentication",
+            self,
+            "Kite Re-Authentication",
             "Paste the request_token from the Kite login redirect URL:",
         )
         if ok and token.strip():

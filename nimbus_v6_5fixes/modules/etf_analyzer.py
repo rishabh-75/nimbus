@@ -499,11 +499,18 @@ def compute_etf_trend(df: pd.DataFrame, info: ETFInfo, lookback: int = 20) -> ET
         if not proxy.empty and "Close" in proxy.columns:
             cls = proxy["Close"].dropna()
             if len(cls) >= 5:
-                up = round(float((cls.iloc[-1] - cls.iloc[0]) / cls.iloc[0] * 100), 2)
+                up = round(
+                    float(
+                        (cls.iloc[-1].item() - cls.iloc[0].item())
+                        / cls.iloc[0].item()
+                        * 100
+                    ),
+                    2,
+                )
                 last, s5, s20 = (
-                    float(cls.iloc[-1]),
-                    float(cls.tail(5).mean()),
-                    float(cls.mean()),
+                    cls.iloc[-1].item(),
+                    cls.tail(5).mean().item(),
+                    cls.mean().item(),
                 )
                 ub = (
                     "BULLISH"

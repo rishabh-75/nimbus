@@ -7,6 +7,7 @@ Colour tokens, platform font detection, QSS master stylesheet.
 Every value here is locked and matches the roadmap spec exactly.
 Do not substitute, simplify, or "modernise" any of these values.
 """
+
 from __future__ import annotations
 
 import platform
@@ -15,79 +16,84 @@ import platform
 # COLOUR TOKENS
 # ══════════════════════════════════════════════════════════════════════════════
 
-BG       = "#080C10"    # main background
-SURFACE  = "#0D1117"    # card / panel background
-S2       = "#111827"    # slightly lighter surface (KPI tile bg, inputs)
-S3       = "#162032"    # hover / selected row
-BORDER   = "#1E2937"    # all borders and dividers
+BG = "#080C10"  # main background
+SURFACE = "#0D1117"  # card / panel background
+S2 = "#111827"  # slightly lighter surface (KPI tile bg, inputs)
+S3 = "#162032"  # hover / selected row
+BORDER = "#1E2937"  # all borders and dividers
 
-EM       = "#10B981"    # emerald — primary accent, NIMBUS brand, BULLISH, LIVE
-EM_DK    = "#059669"    # darker emerald for pressed states
-RED      = "#EF4444"    # bearish, error, AVOID, EXIT signals
-GOLD     = "#F59E0B"    # warning, HALF size, LATE W%R phase, STALE state
-VIOLET   = "#8B5CF6"    # max pain levels, secondary accent
-WHITE    = "#E2E8F0"    # primary text
-MUTED    = "#64748B"    # secondary text, labels, metadata
-GREEN    = "#22C55E"    # FULL size, positive delta, strong viability
+EM = "#10B981"  # emerald — primary accent, NIMBUS brand, BULLISH, LIVE
+EM_DK = "#059669"  # darker emerald for pressed states
+RED = "#EF4444"  # bearish, error, AVOID, EXIT signals
+GOLD = "#F59E0B"  # warning, HALF size, LATE W%R phase, STALE state
+VIOLET = "#8B5CF6"  # max pain levels, secondary accent
+WHITE = "#E2E8F0"  # primary text
+MUTED = "#64748B"  # secondary text, labels, metadata
+GREEN = "#22C55E"  # FULL size, positive delta, strong viability
 
-UP       = "#26A69A"    # bullish candles
-DOWN     = "#EF5350"    # bearish candles
-BB_LINE  = "#BEBEC8"    # Bollinger Band lines (neutral grey, not green)
-BB_FILL  = "rgba(190,190,210,0.06)"   # BB channel fill
-BLUE     = "#60A5FA"    # WATCH/QUARTER sizing tier, informational
+UP = "#26A69A"  # bullish candles
+DOWN = "#EF5350"  # bearish candles
+BB_LINE = "#BEBEC8"  # Bollinger Band lines (neutral grey, not green)
+BB_FILL = "rgba(190,190,210,0.06)"  # BB channel fill
+BLUE = "#60A5FA"  # WATCH/QUARTER sizing tier, informational
 
 # ══════════════════════════════════════════════════════════════════════════════
 # BADGE COLOUR PAIRINGS  (bg, text, border)
 # ══════════════════════════════════════════════════════════════════════════════
 
 BADGE_STYLES = {
-    "BULLISH":     {"bg": "#0D2B20", "text": EM,       "border": EM},
-    "BEARISH":     {"bg": "#2B0D0D", "text": RED,      "border": RED},
-    "FRESH":       {"bg": "#0D2B20", "text": EM,       "border": EM},
-    "DEVELOPING":  {"bg": "#1A2010", "text": "#A3E635", "border": "#A3E635"},
-    "LATE":        {"bg": "#1F1A0D", "text": GOLD,     "border": GOLD},
-    "NO CROSS":    {"bg": S2,        "text": MUTED,    "border": BORDER},
-    "SQUEEZE":     {"bg": "#1A1040", "text": VIOLET,   "border": VIOLET},
-    "EXPANDED":    {"bg": "#200D1A", "text": "#F472B6", "border": "#F472B6"},
-    "PINNING":     {"bg": "#200D1A", "text": "#F472B6", "border": "#F472B6"},
-    "WATCH":       {"bg": "#0D1A2B", "text": BLUE,     "border": BLUE},
-    "NEUTRAL":     {"bg": S2,        "text": MUTED,    "border": BORDER},
+    "BULLISH": {"bg": "#0D2B20", "text": EM, "border": EM},
+    "BEARISH": {"bg": "#2B0D0D", "text": RED, "border": RED},
+    "FRESH": {"bg": "#0D2B20", "text": EM, "border": EM},
+    "DEVELOPING": {"bg": "#1A2010", "text": "#A3E635", "border": "#A3E635"},
+    "LATE": {"bg": "#1F1A0D", "text": GOLD, "border": GOLD},
+    "NO CROSS": {"bg": S2, "text": MUTED, "border": BORDER},
+    "SQUEEZE": {"bg": "#1A1040", "text": VIOLET, "border": VIOLET},
+    "EXPANDED": {"bg": "#200D1A", "text": "#F472B6", "border": "#F472B6"},
+    "PINNING": {"bg": "#200D1A", "text": "#F472B6", "border": "#F472B6"},
+    "WATCH": {"bg": "#0D1A2B", "text": BLUE, "border": BLUE},
+    "NEUTRAL": {"bg": S2, "text": MUTED, "border": BORDER},
 }
 
 # Viability sizing badge pairings
 SIZING_STYLES = {
-    "FULL":  {"bg": "#0A1F15", "text": GREEN,  "border": GREEN},
-    "HALF":  {"bg": "#1F1A0A", "text": GOLD,   "border": GOLD},
-    "SKIP":  {"bg": "#1F0A0A", "text": RED,    "border": RED},
-    "AVOID": {"bg": "#1F0A0A", "text": RED,    "border": RED},
-    "WATCH": {"bg": "#0D1A2B", "text": BLUE,   "border": BLUE},
-    "QTR":   {"bg": "#0D1A2B", "text": BLUE,   "border": BLUE},
-    "ZERO":  {"bg": "#1F0A0A", "text": RED,    "border": RED},
+    "FULL": {"bg": "#0A1F15", "text": GREEN, "border": GREEN},
+    "HALF": {"bg": "#1F1A0A", "text": GOLD, "border": GOLD},
+    "SKIP": {"bg": "#1F0A0A", "text": RED, "border": RED},
+    "AVOID": {"bg": "#1F0A0A", "text": RED, "border": RED},
+    "WATCH": {"bg": "#0D1A2B", "text": BLUE, "border": BLUE},
+    "QTR": {"bg": "#0D1A2B", "text": BLUE, "border": BLUE},
+    "ZERO": {"bg": "#1F0A0A", "text": RED, "border": RED},
 }
 
 # KPI tile value colours by state
 KPI_COLORS = {
-    "positive":  EM,
-    "negative":  RED,
-    "neutral":   GOLD,
-    "quarter":   BLUE,
-    "pinning":   VIOLET,
-    "na":        MUTED,
+    "positive": EM,
+    "negative": RED,
+    "neutral": GOLD,
+    "quarter": BLUE,
+    "pinning": VIOLET,
+    "na": MUTED,
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
 # FONTS — platform detection
 # ══════════════════════════════════════════════════════════════════════════════
 
-if platform.system() == "Darwin":
-    FONT_UI      = "SF Pro Text"
-    FONT_DISPLAY = "SF Pro Display"
-else:
-    FONT_UI      = "Inter, Arial, sans-serif"
-    FONT_DISPLAY = "Inter, Arial, sans-serif"
+# if platform.system() == "Darwin":
+#     FONT_UI = ""
+#     FONT_DISPLAY = "SF Pro Display"
+# else:
+#     FONT_UI = "Inter, Arial, sans-serif"
+#     FONT_DISPLAY = "Inter, Arial, sans-serif"
 
-# JetBrains Mono is bundled cross-platform (assets/) — no fallback needed
+# # JetBrains Mono is bundled cross-platform (assets/) — no fallback needed
+# FONT_MONO = "JetBrains Mono"
+
+FONT_UI = "JetBrains Mono"
+FONT_DISPLAY = "JetBrains Mono"
 FONT_MONO = "JetBrains Mono"
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # QSS MASTER STYLESHEET
@@ -300,7 +306,7 @@ QLabel#section-header {{
     font-family: "{FONT_UI}";
 }}
 QLabel#nimbus-logo {{
-    font-family: "Syne", "{FONT_DISPLAY}", "{FONT_UI}";
+    font-family: "{FONT_MONO}";
     font-size: 18px;
     font-weight: 800;
     color: {EM};

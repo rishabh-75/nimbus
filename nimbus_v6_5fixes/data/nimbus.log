@@ -1083,3 +1083,673 @@
 2026-03-14 01:01:22,405 INFO ui.data_manager: Options ready: NIFTY — ✓ 3 expiries downloaded for NIFTY
 2026-03-14 01:01:26,777 INFO ui.data_manager: Analytics complete: NIFTY — viability=25 sizing=SKIP label=AVOID
 2026-03-14 01:01:27,519 INFO ui.main_window: Context ready: NIFTY — score=25 sizing=SKIP label=AVOID regime=TREND-FRIENDLY
+2026-03-14 14:29:01,718 INFO nimbus: NIMBUS starting — log path: /Users/srishabh/Monarch/nimbus/nimbus_v6_5fixes/data/nimbus.log
+2026-03-14 14:29:04,110 INFO nimbus: Font file not found (optional): /Users/srishabh/Monarch/nimbus/nimbus_v6_5fixes/assets/JetBrainsMono-Regular.ttf
+2026-03-14 14:29:04,110 INFO nimbus: Font file not found (optional): /Users/srishabh/Monarch/nimbus/nimbus_v6_5fixes/assets/JetBrainsMono-Bold.ttf
+2026-03-14 14:29:04,195 WARNING nimbus: JetBrains Mono: NOT available — place .ttf files in assets/ for best rendering
+2026-03-14 14:29:04,195 INFO nimbus: modules/ imported successfully ✓
+2026-03-14 14:29:04,205 INFO ui.data_manager: DataManager initialised
+2026-03-14 14:29:04,208 INFO ui.watchlist_db: Watchlist DB ready: /Users/srishabh/Monarch/nimbus/nimbus_v6_5fixes/ui/../data/watchlist.db
+2026-03-14 14:29:04,778 INFO ui.workers: UniverseWorker start
+2026-03-14 14:29:04,851 INFO ui.kite_manager: Kite daily check scheduled for 2026-03-16 09:00 IST (in 2550 min)
+2026-03-14 14:29:04,851 INFO ui.main_window: MainWindow initialised — Phase 7 ready
+2026-03-14 14:29:04,953 INFO nimbus: MainWindow shown — Phase 0 gate open
+2026-03-14 14:29:05,229 INFO ui.workers: UniverseWorker done: 211 symbols in 0.5s
+2026-03-14 14:29:05,279 INFO ui.data_manager: Universe ready: 211 symbols
+2026-03-14 14:29:05,279 INFO ui.main_window: Universe loaded: 211 symbols
+2026-03-14 14:29:05,280 INFO ui.main_window: Auto-loading initial symbol: NIFTY
+2026-03-14 14:29:05,281 INFO ui.main_window: Symbol changed → immediate pipeline: NIFTY
+2026-03-14 14:29:05,281 INFO ui.data_manager: DataManager.refresh: NIFTY
+2026-03-14 14:29:05,281 INFO ui.workers: PriceWorker start: NIFTY
+2026-03-14 14:29:05,281 INFO ui.workers: OptionsWorker start: NIFTY
+2026-03-14 14:29:06,634 INFO ui.kite_manager: No Kite session file — yfinance fallback
+2026-03-14 14:29:06,634 INFO ui.main_window: Kite unavailable (No session file) — yfinance polling active
+2026-03-14 14:29:07,321 INFO ui.workers: OptionsWorker done: NIFTY in 2.0s (418 rows)
+2026-03-14 14:29:07,322 INFO ui.data_manager: Options ready: NIFTY — ✓ 3 expiries downloaded for NIFTY
+2026-03-14 14:29:08,165 INFO ui.workers: PriceWorker done: NIFTY in 2.9s (120 bars)
+2026-03-14 14:29:08,165 INFO ui.data_manager: Price ready: NIFTY — ✓ ^NSEI · 120 × 4h bars
+2026-03-14 14:29:08,166 INFO ui.main_window: Spot updated: NIFTY = 23170.90
+2026-03-14 14:29:08,202 INFO ui.main_window: PriceSignals ready: NIFTY — WR=-97.9 bias=BEARISH pos=MID_BAND_BROKEN vol=EXPANDED
+2026-03-14 14:29:12,516 INFO ui.data_manager: Analytics complete: NIFTY — viability=25 sizing=SKIP label=AVOID
+2026-03-14 14:29:12,915 INFO ui.main_window: Context ready: NIFTY — score=25 sizing=SKIP label=AVOID regime=TREND-FRIENDLY
+2026-03-14 14:30:00,520 INFO ui.sidebar: Manual symbol entry: CPSEETF
+2026-03-14 14:30:00,524 INFO ui.sidebar: Symbol selected from combo: CPSEETF
+2026-03-14 14:30:00,524 INFO ui.main_window: Symbol changed → immediate pipeline: CPSEETF
+2026-03-14 14:30:00,525 INFO ui.data_manager: DataManager.refresh: CPSEETF
+2026-03-14 14:30:00,526 INFO ui.main_window: Symbol changed → immediate pipeline: CPSEETF
+2026-03-14 14:30:00,526 INFO ui.workers: PriceWorker start: CPSEETF
+2026-03-14 14:30:00,527 INFO ui.data_manager: DataManager.refresh: CPSEETF
+2026-03-14 14:30:00,530 INFO ui.workers: PriceWorker start: CPSEETF
+2026-03-14 14:30:01,249 INFO ui.workers: PriceWorker done: CPSEETF in 0.7s (120 bars)
+2026-03-14 14:30:01,277 INFO ui.workers: PriceWorker done: CPSEETF in 0.8s (120 bars)
+2026-03-14 14:30:01,278 INFO ui.data_manager: Price ready: CPSEETF — ✓ CPSEETF.NS · 120 × 4h bars
+2026-03-14 14:30:01,278 INFO ui.main_window: Spot updated: CPSEETF = 102.50
+2026-03-14 14:30:01,359 INFO ui.main_window: PriceSignals ready: CPSEETF — WR=-50.0 bias=BULLISH pos=MID_BAND_BROKEN vol=NORMAL
+2026-03-14 14:30:02,390 INFO ui.data_manager: Price ready: CPSEETF — ✓ CPSEETF.NS · 120 × 4h bars
+2026-03-14 14:30:02,391 INFO ui.main_window: Spot updated: CPSEETF = 102.50
+2026-03-14 14:30:02,433 INFO ui.main_window: PriceSignals ready: CPSEETF — WR=-50.0 bias=BULLISH pos=MID_BAND_BROKEN vol=NORMAL
+2026-03-14 14:30:20,863 ERROR yfinance: 
+1 Failed download:
+2026-03-14 14:30:20,864 ERROR yfinance: ['NIFTYIT.NS']: YFPricesMissingError('possibly delisted; no price data found  (1d 2026-02-27 -> 2026-03-14)')
+2026-03-14 14:46:04,407 INFO ui.data_manager: Freshness → STALE
+2026-03-14 14:46:04,413 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-14 15:01:34,299 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-14 15:06:33,779 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-14 15:11:33,771 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-14 15:16:33,771 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-14 15:21:33,772 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-14 15:26:33,771 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-14 15:31:33,774 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-14 15:36:33,773 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-15 14:05:22,287 INFO nimbus: NIMBUS starting — log path: /Users/srishabh/Monarch/nimbus/nimbus_v6_5fixes/data/nimbus.log
+2026-03-15 14:05:24,272 INFO nimbus: Font file not found (optional): /Users/srishabh/Monarch/nimbus/nimbus_v6_5fixes/assets/JetBrainsMono-Regular.ttf
+2026-03-15 14:05:24,272 INFO nimbus: Font file not found (optional): /Users/srishabh/Monarch/nimbus/nimbus_v6_5fixes/assets/JetBrainsMono-Bold.ttf
+2026-03-15 14:05:24,358 WARNING nimbus: JetBrains Mono: NOT available — place .ttf files in assets/ for best rendering
+2026-03-15 14:05:24,358 INFO nimbus: modules/ imported successfully ✓
+2026-03-15 14:05:24,367 INFO ui.data_manager: DataManager initialised
+2026-03-15 14:05:24,375 INFO ui.watchlist_db: Watchlist DB ready: /Users/srishabh/Monarch/nimbus/nimbus_v6_5fixes/ui/../data/watchlist.db
+2026-03-15 14:05:24,944 INFO ui.workers: UniverseWorker start
+2026-03-15 14:05:25,051 INFO ui.kite_manager: Kite daily check scheduled for 2026-03-16 09:00 IST (in 1134 min)
+2026-03-15 14:05:25,052 INFO ui.main_window: MainWindow initialised — Phase 7 ready
+2026-03-15 14:05:25,156 INFO nimbus: MainWindow shown — Phase 0 gate open
+2026-03-15 14:05:25,163 INFO modules.filings_v2: [filings_v2] NIFTY500 refreshed: 501 symbols
+2026-03-15 14:05:25,163 INFO ui.data_manager: NIFTY500 pre-warm: 501 symbols cached
+2026-03-15 14:05:25,483 INFO ui.main_window: Auto-loading initial symbol: NIFTY
+2026-03-15 14:05:25,483 INFO ui.main_window: Symbol changed → immediate pipeline: NIFTY
+2026-03-15 14:05:25,483 INFO ui.data_manager: DataManager.refresh: NIFTY
+2026-03-15 14:05:25,484 INFO ui.workers: PriceWorker start: NIFTY
+2026-03-15 14:05:25,484 INFO ui.workers: OptionsWorker start: NIFTY
+2026-03-15 14:05:25,619 INFO ui.workers: UniverseWorker done: 211 symbols in 0.7s
+2026-03-15 14:05:25,619 INFO ui.data_manager: Universe ready: 211 symbols
+2026-03-15 14:05:25,620 INFO ui.main_window: Universe loaded: 211 symbols
+2026-03-15 14:05:26,854 INFO ui.kite_manager: No Kite session file — yfinance fallback
+2026-03-15 14:05:26,855 INFO ui.main_window: Kite unavailable (No session file) — yfinance polling active
+2026-03-15 14:05:29,194 INFO ui.workers: PriceWorker done: NIFTY in 3.7s (117 bars)
+2026-03-15 14:05:29,194 INFO ui.data_manager: Price ready: NIFTY — ✓ ^NSEI · 117 × 4h bars
+2026-03-15 14:05:29,195 INFO ui.main_window: Spot updated: NIFTY = 23170.90
+2026-03-15 14:05:29,245 INFO ui.main_window: PriceSignals ready: NIFTY — WR=-97.9 bias=BEARISH pos=MID_BAND_BROKEN vol=EXPANDED
+2026-03-15 14:05:29,245 INFO ui.data_manager: Analytics complete: NIFTY — viability=50 sizing=HALF label=NEUTRAL
+2026-03-15 14:05:29,580 INFO ui.main_window: Context ready: NIFTY — score=50 sizing=HALF label=NEUTRAL regime=UNKNOWN
+2026-03-15 14:05:30,359 INFO ui.workers: OptionsWorker done: NIFTY in 4.9s (418 rows)
+2026-03-15 14:05:30,360 INFO ui.data_manager: Options ready: NIFTY — ✓ 3 expiries downloaded for NIFTY
+2026-03-15 14:05:34,740 INFO ui.data_manager: Analytics complete: NIFTY — viability=15 sizing=SKIP label=AVOID
+2026-03-15 14:05:35,335 INFO ui.main_window: Context ready: NIFTY — score=15 sizing=SKIP label=AVOID regime=TREND-FRIENDLY
+2026-03-15 14:05:50,947 INFO ui.sidebar: Manual symbol entry: CPSEETF
+2026-03-15 14:05:50,950 INFO ui.sidebar: Symbol selected from combo: CPSEETF
+2026-03-15 14:05:50,950 INFO ui.main_window: Symbol changed → immediate pipeline: CPSEETF
+2026-03-15 14:05:50,951 INFO ui.data_manager: DataManager.refresh: CPSEETF
+2026-03-15 14:05:50,952 INFO ui.main_window: Symbol changed → immediate pipeline: CPSEETF
+2026-03-15 14:05:50,952 INFO ui.workers: PriceWorker start: CPSEETF
+2026-03-15 14:05:50,953 INFO ui.data_manager: DataManager.refresh: CPSEETF
+2026-03-15 14:05:50,956 INFO ui.workers: PriceWorker start: CPSEETF
+2026-03-15 14:05:51,748 INFO ui.workers: PriceWorker done: CPSEETF in 0.8s (117 bars)
+2026-03-15 14:05:51,773 INFO ui.workers: PriceWorker done: CPSEETF in 0.8s (117 bars)
+2026-03-15 14:05:51,773 INFO ui.data_manager: Price ready: CPSEETF — ✓ CPSEETF.NS · 117 × 4h bars
+2026-03-15 14:05:51,774 INFO ui.main_window: Spot updated: CPSEETF = 102.50
+2026-03-15 14:05:51,851 INFO ui.main_window: PriceSignals ready: CPSEETF — WR=-50.0 bias=BULLISH pos=MID_BAND_BROKEN vol=NORMAL
+2026-03-15 14:05:52,486 INFO ui.data_manager: ETF analytics: CPSEETF — score=23 sizing=SKIP label=AVOID
+2026-03-15 14:05:52,491 INFO ui.data_manager: Price ready: CPSEETF — ✓ CPSEETF.NS · 117 × 4h bars
+2026-03-15 14:05:52,492 INFO ui.main_window: Spot updated: CPSEETF = 102.50
+2026-03-15 14:05:52,529 INFO ui.main_window: PriceSignals ready: CPSEETF — WR=-50.0 bias=BULLISH pos=MID_BAND_BROKEN vol=NORMAL
+2026-03-15 14:05:52,718 INFO ui.data_manager: ETF analytics: CPSEETF — score=23 sizing=SKIP label=AVOID
+2026-03-15 14:06:12,335 INFO ui.workers: ScanWorker start: 53 symbols, min_viab=50
+2026-03-15 14:06:28,582 ERROR yfinance: 
+1 Failed download:
+2026-03-15 14:06:28,642 ERROR yfinance: ['NIFTYIT.NS']: YFPricesMissingError('possibly delisted; no price data found  (1d 2026-02-28 -> 2026-03-15)')
+2026-03-15 14:08:03,477 INFO ui.workers: ScanWorker cancelled at 17/53
+2026-03-15 14:08:03,478 INFO ui.workers: ScanWorker done: 0/53 passed in 111.1s
+2026-03-15 14:08:03,478 INFO ui.scanner_tab: Scan complete: 0 results
+2026-03-15 14:19:18,540 INFO nimbus: NIMBUS starting — log path: /Users/srishabh/Monarch/nimbus/nimbus_v6_5fixes/data/nimbus.log
+2026-03-15 14:19:20,128 INFO nimbus: Font file not found (optional): /Users/srishabh/Monarch/nimbus/nimbus_v6_5fixes/assets/JetBrainsMono-Regular.ttf
+2026-03-15 14:19:20,128 INFO nimbus: Font file not found (optional): /Users/srishabh/Monarch/nimbus/nimbus_v6_5fixes/assets/JetBrainsMono-Bold.ttf
+2026-03-15 14:19:20,213 WARNING nimbus: JetBrains Mono: NOT available — place .ttf files in assets/ for best rendering
+2026-03-15 14:19:20,213 INFO nimbus: modules/ imported successfully ✓
+2026-03-15 14:19:20,222 INFO ui.data_manager: DataManager initialised
+2026-03-15 14:19:20,226 INFO ui.watchlist_db: Watchlist DB ready: /Users/srishabh/Monarch/nimbus/nimbus_v6_5fixes/ui/../data/watchlist.db
+2026-03-15 14:19:20,797 INFO ui.workers: UniverseWorker start
+2026-03-15 14:19:20,798 INFO ui.workers: UniverseWorker done: 211 symbols in 0.0s
+2026-03-15 14:19:20,875 INFO ui.kite_manager: Kite daily check scheduled for 2026-03-16 09:00 IST (in 1120 min)
+2026-03-15 14:19:20,875 INFO ui.main_window: MainWindow initialised — Phase 7 ready
+2026-03-15 14:19:20,883 INFO modules.filings_v2: [filings_v2] NIFTY500 refreshed: 501 symbols
+2026-03-15 14:19:20,988 INFO nimbus: MainWindow shown — Phase 0 gate open
+2026-03-15 14:19:20,988 INFO ui.data_manager: NIFTY500 pre-warm: 501 symbols cached
+2026-03-15 14:19:21,132 INFO ui.data_manager: Universe ready: 211 symbols
+2026-03-15 14:19:21,133 INFO ui.main_window: Universe loaded: 211 symbols
+2026-03-15 14:19:21,342 INFO ui.main_window: Auto-loading initial symbol: NIFTY
+2026-03-15 14:19:21,342 INFO ui.main_window: Symbol changed → immediate pipeline: NIFTY
+2026-03-15 14:19:21,342 INFO ui.data_manager: DataManager.refresh: NIFTY
+2026-03-15 14:19:21,343 INFO ui.workers: PriceWorker start: NIFTY
+2026-03-15 14:19:21,343 INFO ui.workers: OptionsWorker start: NIFTY
+2026-03-15 14:19:22,527 INFO ui.workers: PriceWorker done: NIFTY in 1.2s (117 bars)
+2026-03-15 14:19:22,736 INFO ui.kite_manager: No Kite session file — yfinance fallback
+2026-03-15 14:19:22,736 INFO ui.main_window: Kite unavailable (No session file) — yfinance polling active
+2026-03-15 14:19:22,737 INFO ui.data_manager: Price ready: NIFTY — ✓ ^NSEI · 117 × 4h bars
+2026-03-15 14:19:22,738 INFO ui.main_window: Spot updated: NIFTY = 23170.90
+2026-03-15 14:19:22,772 INFO ui.main_window: PriceSignals ready: NIFTY — WR=-97.9 bias=BEARISH pos=MID_BAND_BROKEN vol=EXPANDED
+2026-03-15 14:19:22,772 INFO ui.data_manager: Analytics complete: NIFTY — viability=50 sizing=HALF label=NEUTRAL
+2026-03-15 14:19:23,104 INFO ui.main_window: Context ready: NIFTY — score=50 sizing=HALF label=NEUTRAL regime=UNKNOWN
+2026-03-15 14:19:23,736 INFO ui.workers: OptionsWorker done: NIFTY in 2.4s (418 rows)
+2026-03-15 14:19:23,736 INFO ui.data_manager: Options ready: NIFTY — ✓ 3 expiries downloaded for NIFTY
+2026-03-15 14:19:28,329 INFO ui.data_manager: Analytics complete: NIFTY — viability=15 sizing=SKIP label=AVOID
+2026-03-15 14:19:28,669 INFO ui.main_window: Context ready: NIFTY — score=15 sizing=SKIP label=AVOID regime=TREND-FRIENDLY
+2026-03-15 14:19:36,290 INFO ui.workers: ScanWorker start: 53 symbols, min_viab=50
+2026-03-15 14:21:36,976 ERROR yfinance: 
+1 Failed download:
+2026-03-15 14:21:36,977 ERROR yfinance: ['TATAMOTORS.NS']: YFPricesMissingError('possibly delisted; no price data found  (1h 2026-01-14 -> 2026-03-15 14:21:36+05:30) (Yahoo error = "No data found, symbol may be delisted")')
+2026-03-15 14:21:37,758 ERROR yfinance: 
+1 Failed download:
+2026-03-15 14:21:37,758 ERROR yfinance: ['TATAMOTORS.NS']: YFPricesMissingError('possibly delisted; no price data found  (1d 2025-03-15 -> 2026-03-15) (Yahoo error = "No data found, symbol may be delisted")')
+2026-03-15 14:24:12,799 ERROR yfinance: 
+1 Failed download:
+2026-03-15 14:24:12,801 ERROR yfinance: ['ZOMATO.NS']: YFPricesMissingError('possibly delisted; no price data found  (1h 2026-01-14 -> 2026-03-15 14:24:11+05:30) (Yahoo error = "No data found, symbol may be delisted")')
+2026-03-15 14:24:14,134 ERROR yfinance: 
+1 Failed download:
+2026-03-15 14:24:14,135 ERROR yfinance: ['ZOMATO.NS']: YFPricesMissingError('possibly delisted; no price data found  (1d 2025-03-15 -> 2026-03-15) (Yahoo error = "No data found, symbol may be delisted")')
+2026-03-15 14:24:23,852 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-15 14:24:32,431 INFO ui.workers: ScanWorker done: 1/53 passed in 296.1s
+2026-03-15 14:24:32,434 INFO ui.scanner_tab: Scan complete: 1 results
+2026-03-15 14:24:32,434 INFO ui.workers: FilingsWorker start: 1 symbols
+2026-03-15 14:24:33,233 INFO ui.workers: FilingsWorker done: 0.8s
+2026-03-15 14:24:33,234 INFO ui.scanner_tab: FilingsWorker enrichment complete
+2026-03-15 14:24:49,808 INFO ui.data_manager: Freshness → STALE
+2026-03-15 14:26:16,862 ERROR yfinance: 
+1 Failed download:
+2026-03-15 14:26:16,864 ERROR yfinance: ['NIFTYIT.NS']: YFPricesMissingError('possibly delisted; no price data found  (1d 2026-02-28 -> 2026-03-15)')
+2026-03-15 14:27:06,106 INFO ui.sidebar: Manual symbol entry: COALINDIA
+2026-03-15 14:27:06,109 INFO ui.sidebar: Symbol selected from combo: COALINDIA
+2026-03-15 14:27:06,109 INFO ui.main_window: Symbol changed → immediate pipeline: COALINDIA
+2026-03-15 14:27:06,111 INFO ui.data_manager: DataManager.refresh: COALINDIA
+2026-03-15 14:27:06,112 INFO ui.workers: PriceWorker start: COALINDIA
+2026-03-15 14:27:06,114 INFO ui.main_window: Symbol changed → immediate pipeline: COALINDIA
+2026-03-15 14:27:06,114 INFO ui.workers: OptionsWorker start: COALINDIA
+2026-03-15 14:27:06,115 INFO ui.data_manager: DataManager.refresh: COALINDIA
+2026-03-15 14:27:06,117 INFO ui.workers: PriceWorker start: COALINDIA
+2026-03-15 14:27:06,118 INFO ui.workers: OptionsWorker start: COALINDIA
+2026-03-15 14:27:06,416 INFO ui.workers: PriceWorker done: COALINDIA in 0.3s (117 bars)
+2026-03-15 14:27:06,425 INFO ui.data_manager: Price ready: COALINDIA — ✓ COALINDIA.NS · 117 × 4h bars
+2026-03-15 14:27:06,426 INFO ui.main_window: Spot updated: COALINDIA = 466.50
+2026-03-15 14:27:06,452 INFO ui.workers: PriceWorker done: COALINDIA in 0.3s (117 bars)
+2026-03-15 14:27:06,554 INFO ui.main_window: PriceSignals ready: COALINDIA — WR=-15.1 bias=BULLISH pos=RIDING_UPPER vol=EXPANDED
+2026-03-15 14:27:06,555 INFO ui.data_manager: Analytics complete: COALINDIA — viability=50 sizing=HALF label=NEUTRAL
+2026-03-15 14:27:07,006 INFO ui.main_window: Context ready: COALINDIA — score=50 sizing=HALF label=NEUTRAL regime=UNKNOWN
+2026-03-15 14:27:07,040 INFO ui.data_manager: Price ready: COALINDIA — ✓ COALINDIA.NS · 117 × 4h bars
+2026-03-15 14:27:07,040 INFO ui.main_window: Spot updated: COALINDIA = 466.50
+2026-03-15 14:27:07,113 INFO ui.main_window: PriceSignals ready: COALINDIA — WR=-15.1 bias=BULLISH pos=RIDING_UPPER vol=EXPANDED
+2026-03-15 14:27:07,114 INFO ui.data_manager: Analytics complete: COALINDIA — viability=50 sizing=HALF label=NEUTRAL
+2026-03-15 14:27:07,571 INFO ui.main_window: Context ready: COALINDIA — score=50 sizing=HALF label=NEUTRAL regime=UNKNOWN
+2026-03-15 14:27:09,670 INFO ui.workers: OptionsWorker done: COALINDIA in 3.6s (162 rows)
+2026-03-15 14:27:09,671 INFO ui.workers: OptionsWorker done: COALINDIA in 3.6s (162 rows)
+2026-03-15 14:27:09,671 INFO ui.data_manager: Options ready: COALINDIA — ✓ 3 expiries downloaded for COALINDIA
+2026-03-15 14:27:10,747 INFO ui.data_manager: Analytics complete: COALINDIA — viability=64 sizing=HALF label=CAUTION
+2026-03-15 14:27:11,070 INFO ui.main_window: Context ready: COALINDIA — score=64 sizing=HALF label=CAUTION regime=PINNING
+2026-03-15 14:27:11,070 INFO ui.data_manager: Options ready: COALINDIA — ✓ 3 expiries downloaded for COALINDIA
+2026-03-15 14:27:12,134 INFO ui.data_manager: Analytics complete: COALINDIA — viability=64 sizing=HALF label=CAUTION
+2026-03-15 14:27:12,653 INFO ui.main_window: Context ready: COALINDIA — score=64 sizing=HALF label=CAUTION regime=PINNING
+2026-03-15 14:27:59,141 INFO ui.main_window: open_symbol_in_dashboard: COALINDIA
+2026-03-15 14:27:59,147 INFO ui.data_manager: DataManager.refresh: COALINDIA
+2026-03-15 14:27:59,147 INFO ui.workers: PriceWorker start: COALINDIA
+2026-03-15 14:27:59,148 INFO ui.workers: OptionsWorker start: COALINDIA
+2026-03-15 14:28:00,191 INFO ui.workers: PriceWorker done: COALINDIA in 1.0s (117 bars)
+2026-03-15 14:28:00,197 INFO ui.data_manager: Price ready: COALINDIA — ✓ COALINDIA.NS · 117 × 4h bars
+2026-03-15 14:28:00,198 INFO ui.main_window: Spot updated: COALINDIA = 466.50
+2026-03-15 14:28:00,276 INFO ui.main_window: PriceSignals ready: COALINDIA — WR=-15.1 bias=BULLISH pos=RIDING_UPPER vol=EXPANDED
+2026-03-15 14:28:00,276 INFO ui.data_manager: Analytics complete: COALINDIA — viability=50 sizing=HALF label=NEUTRAL
+2026-03-15 14:28:00,596 INFO ui.main_window: Context ready: COALINDIA — score=50 sizing=HALF label=NEUTRAL regime=UNKNOWN
+2026-03-15 14:28:02,515 INFO ui.workers: OptionsWorker done: COALINDIA in 3.4s (162 rows)
+2026-03-15 14:28:02,516 INFO ui.data_manager: Options ready: COALINDIA — ✓ 3 expiries downloaded for COALINDIA
+2026-03-15 14:28:03,595 INFO ui.data_manager: Analytics complete: COALINDIA — viability=64 sizing=HALF label=CAUTION
+2026-03-15 14:28:04,100 INFO ui.main_window: Context ready: COALINDIA — score=64 sizing=HALF label=CAUTION regime=PINNING
+2026-03-15 14:32:58,808 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-15 14:33:19,813 INFO ui.data_manager: Freshness → STALE
+2026-03-15 14:46:42,770 INFO nimbus: NIMBUS starting — log path: /Users/srishabh/Monarch/nimbus/nimbus_v6_5fixes/data/nimbus.log
+2026-03-15 14:46:44,349 INFO nimbus: Loaded font: JetBrainsMono-Regular.ttf → ['JetBrains Mono']
+2026-03-15 14:46:44,351 INFO nimbus: Loaded font: JetBrainsMono-Bold.ttf → ['JetBrains Mono']
+2026-03-15 14:46:44,437 INFO nimbus: JetBrains Mono: available ✓
+2026-03-15 14:46:44,438 INFO nimbus: modules/ imported successfully ✓
+2026-03-15 14:46:44,448 INFO ui.data_manager: DataManager initialised
+2026-03-15 14:46:44,452 INFO ui.watchlist_db: Watchlist DB ready: /Users/srishabh/Monarch/nimbus/nimbus_v6_5fixes/ui/../data/watchlist.db
+2026-03-15 14:46:44,711 INFO ui.workers: UniverseWorker start
+2026-03-15 14:46:44,712 INFO ui.workers: UniverseWorker done: 211 symbols in 0.0s
+2026-03-15 14:46:44,814 INFO ui.kite_manager: Kite daily check scheduled for 2026-03-16 09:00 IST (in 1093 min)
+2026-03-15 14:46:44,815 INFO ui.main_window: MainWindow initialised — Phase 7 ready
+2026-03-15 14:46:45,174 INFO nimbus: MainWindow shown — Phase 0 gate open
+2026-03-15 14:46:45,193 INFO modules.filings_v2: [filings_v2] NIFTY500 refreshed: 501 symbols
+2026-03-15 14:46:45,194 INFO ui.data_manager: NIFTY500 pre-warm: 501 symbols cached
+2026-03-15 14:46:45,330 INFO ui.data_manager: Universe ready: 211 symbols
+2026-03-15 14:46:45,331 INFO ui.main_window: Universe loaded: 211 symbols
+2026-03-15 14:46:45,551 INFO ui.main_window: Auto-loading initial symbol: NIFTY
+2026-03-15 14:46:45,551 INFO ui.main_window: Symbol changed → immediate pipeline: NIFTY
+2026-03-15 14:46:45,551 INFO ui.data_manager: DataManager.refresh: NIFTY
+2026-03-15 14:46:45,551 INFO ui.workers: PriceWorker start: NIFTY
+2026-03-15 14:46:45,551 INFO ui.workers: OptionsWorker start: NIFTY
+2026-03-15 14:46:46,593 INFO ui.kite_manager: No Kite session file — yfinance fallback
+2026-03-15 14:46:46,594 INFO ui.main_window: Kite unavailable (No session file) — yfinance polling active
+2026-03-15 14:46:47,587 INFO ui.workers: PriceWorker done: NIFTY in 2.0s (117 bars)
+2026-03-15 14:46:47,588 INFO ui.data_manager: Price ready: NIFTY — ✓ ^NSEI · 117 × 4h bars
+2026-03-15 14:46:47,588 INFO ui.main_window: Spot updated: NIFTY = 23170.90
+2026-03-15 14:46:47,626 INFO ui.main_window: PriceSignals ready: NIFTY — WR=-97.9 bias=BEARISH pos=MID_BAND_BROKEN vol=EXPANDED
+2026-03-15 14:46:47,626 INFO ui.data_manager: Analytics complete: NIFTY — viability=50 sizing=HALF label=NEUTRAL
+2026-03-15 14:46:47,981 INFO ui.main_window: Context ready: NIFTY — score=50 sizing=HALF label=NEUTRAL regime=UNKNOWN
+2026-03-15 14:46:47,982 INFO ui.workers: SingleFilingWorker start: NIFTY
+2026-03-15 14:46:48,699 INFO ui.workers: OptionsWorker done: NIFTY in 3.1s (418 rows)
+2026-03-15 14:46:48,700 INFO ui.data_manager: Options ready: NIFTY — ✓ 3 expiries downloaded for NIFTY
+2026-03-15 14:46:53,066 INFO ui.data_manager: Analytics complete: NIFTY — viability=15 sizing=SKIP label=AVOID
+2026-03-15 14:46:53,519 INFO ui.main_window: Context ready: NIFTY — score=15 sizing=SKIP label=AVOID regime=TREND-FRIENDLY
+2026-03-15 14:46:53,519 INFO ui.workers: SingleFilingWorker start: NIFTY
+2026-03-15 14:47:11,691 INFO ui.sidebar: Symbol selected from combo: COALINDIA
+2026-03-15 14:47:11,692 INFO ui.main_window: Symbol changed → immediate pipeline: COALINDIA
+2026-03-15 14:47:11,693 INFO ui.data_manager: DataManager.refresh: COALINDIA
+2026-03-15 14:47:11,694 INFO ui.workers: PriceWorker start: COALINDIA
+2026-03-15 14:47:11,694 INFO ui.workers: OptionsWorker start: COALINDIA
+2026-03-15 14:47:12,489 INFO ui.workers: PriceWorker done: COALINDIA in 0.8s (117 bars)
+2026-03-15 14:47:12,489 INFO ui.data_manager: Price ready: COALINDIA — ✓ COALINDIA.NS · 117 × 4h bars
+2026-03-15 14:47:12,490 INFO ui.main_window: Spot updated: COALINDIA = 466.50
+2026-03-15 14:47:12,569 INFO ui.main_window: PriceSignals ready: COALINDIA — WR=-15.1 bias=BULLISH pos=RIDING_UPPER vol=EXPANDED
+2026-03-15 14:47:12,569 INFO ui.data_manager: Analytics complete: COALINDIA — viability=50 sizing=HALF label=NEUTRAL
+2026-03-15 14:47:12,874 INFO ui.main_window: Context ready: COALINDIA — score=50 sizing=HALF label=NEUTRAL regime=UNKNOWN
+2026-03-15 14:47:12,874 INFO ui.workers: SingleFilingWorker start: COALINDIA
+2026-03-15 14:47:14,707 INFO ui.workers: OptionsWorker done: COALINDIA in 3.0s (162 rows)
+2026-03-15 14:47:14,708 INFO ui.data_manager: Options ready: COALINDIA — ✓ 3 expiries downloaded for COALINDIA
+2026-03-15 14:47:15,775 INFO ui.data_manager: Analytics complete: COALINDIA — viability=64 sizing=HALF label=CAUTION
+2026-03-15 14:47:16,205 INFO ui.main_window: Context ready: COALINDIA — score=64 sizing=HALF label=CAUTION regime=PINNING
+2026-03-15 14:47:16,205 INFO ui.workers: SingleFilingWorker start: COALINDIA
+2026-03-15 14:47:50,658 INFO ui.sidebar: Symbol selected from combo: HDFCBANK
+2026-03-15 14:47:50,661 INFO ui.main_window: Symbol changed → immediate pipeline: HDFCBANK
+2026-03-15 14:47:50,663 INFO ui.data_manager: DataManager.refresh: HDFCBANK
+2026-03-15 14:47:50,664 INFO ui.workers: PriceWorker start: HDFCBANK
+2026-03-15 14:47:50,666 INFO ui.workers: OptionsWorker start: HDFCBANK
+2026-03-15 14:47:51,009 INFO ui.workers: PriceWorker done: HDFCBANK in 0.3s (117 bars)
+2026-03-15 14:47:51,009 INFO ui.data_manager: Price ready: HDFCBANK — ✓ HDFCBANK.NS · 117 × 4h bars
+2026-03-15 14:47:51,009 INFO ui.main_window: Spot updated: HDFCBANK = 816.70
+2026-03-15 14:47:51,092 INFO ui.main_window: PriceSignals ready: HDFCBANK — WR=-96.0 bias=BEARISH pos=MID_BAND_BROKEN vol=EXPANDED
+2026-03-15 14:47:51,093 INFO ui.data_manager: Analytics complete: HDFCBANK — viability=50 sizing=HALF label=NEUTRAL
+2026-03-15 14:47:51,408 INFO ui.main_window: Context ready: HDFCBANK — score=50 sizing=HALF label=NEUTRAL regime=UNKNOWN
+2026-03-15 14:47:51,408 INFO ui.workers: SingleFilingWorker start: HDFCBANK
+2026-03-15 14:47:53,812 INFO ui.workers: OptionsWorker done: HDFCBANK in 3.1s (146 rows)
+2026-03-15 14:47:53,813 INFO ui.data_manager: Options ready: HDFCBANK — ✓ 3 expiries downloaded for HDFCBANK
+2026-03-15 14:47:54,799 INFO ui.data_manager: Analytics complete: HDFCBANK — viability=9 sizing=SKIP label=AVOID
+2026-03-15 14:47:55,118 INFO ui.main_window: Context ready: HDFCBANK — score=9 sizing=SKIP label=AVOID regime=PINNING
+2026-03-15 14:47:55,119 INFO ui.workers: SingleFilingWorker start: HDFCBANK
+2026-03-15 14:48:39,091 INFO ui.sidebar: Manual symbol entry: ADVENZYMES
+2026-03-15 14:48:39,095 INFO ui.sidebar: Symbol selected from combo: ADVENZYMES
+2026-03-15 14:48:39,095 INFO ui.main_window: Symbol changed → immediate pipeline: ADVENZYMES
+2026-03-15 14:48:39,097 INFO ui.data_manager: DataManager.refresh: ADVENZYMES
+2026-03-15 14:48:39,098 INFO ui.workers: PriceWorker start: ADVENZYMES
+2026-03-15 14:48:39,100 INFO ui.main_window: Symbol changed → immediate pipeline: ADVENZYMES
+2026-03-15 14:48:39,100 INFO ui.workers: OptionsWorker start: ADVENZYMES
+2026-03-15 14:48:39,104 INFO ui.data_manager: DataManager.refresh: ADVENZYMES
+2026-03-15 14:48:39,107 INFO ui.workers: PriceWorker start: ADVENZYMES
+2026-03-15 14:48:39,110 INFO ui.workers: OptionsWorker start: ADVENZYMES
+2026-03-15 14:48:39,456 INFO ui.workers: PriceWorker done: ADVENZYMES in 0.3s (118 bars)
+2026-03-15 14:48:39,462 INFO ui.workers: PriceWorker done: ADVENZYMES in 0.4s (118 bars)
+2026-03-15 14:48:39,462 INFO ui.data_manager: Price ready: ADVENZYMES — ✓ ADVENZYMES.NS · 118 × 4h bars
+2026-03-15 14:48:39,462 INFO ui.main_window: Spot updated: ADVENZYMES = 277.30
+2026-03-15 14:48:39,543 INFO ui.main_window: PriceSignals ready: ADVENZYMES — WR=-96.5 bias=BEARISH pos=MID_BAND_BROKEN vol=NORMAL
+2026-03-15 14:48:39,544 INFO ui.data_manager: Analytics complete: ADVENZYMES — viability=50 sizing=HALF label=NEUTRAL
+2026-03-15 14:48:39,697 WARNING ui.workers: OptionsWorker empty: ADVENZYMES — No expiry dates returned for ADVENZYMES
+2026-03-15 14:48:39,779 WARNING ui.workers: OptionsWorker empty: ADVENZYMES — No expiry dates returned for ADVENZYMES
+2026-03-15 14:48:39,878 INFO ui.main_window: Context ready: ADVENZYMES — score=50 sizing=HALF label=NEUTRAL regime=UNKNOWN
+2026-03-15 14:48:39,878 INFO ui.workers: SingleFilingWorker start: ADVENZYMES
+2026-03-15 14:48:39,878 INFO ui.data_manager: Price ready: ADVENZYMES — ✓ ADVENZYMES.NS · 118 × 4h bars
+2026-03-15 14:48:39,879 INFO ui.main_window: Spot updated: ADVENZYMES = 277.30
+2026-03-15 14:48:39,953 INFO ui.main_window: PriceSignals ready: ADVENZYMES — WR=-96.5 bias=BEARISH pos=MID_BAND_BROKEN vol=NORMAL
+2026-03-15 14:48:39,953 INFO ui.data_manager: Analytics complete: ADVENZYMES — viability=50 sizing=HALF label=NEUTRAL
+2026-03-15 14:48:40,267 INFO ui.main_window: Context ready: ADVENZYMES — score=50 sizing=HALF label=NEUTRAL regime=UNKNOWN
+2026-03-15 14:48:40,267 INFO ui.workers: SingleFilingWorker start: ADVENZYMES
+2026-03-15 14:48:40,306 WARNING ui.data_manager: Options error: ADVENZYMES — No expiry dates returned for ADVENZYMES
+2026-03-15 14:48:40,306 ERROR ui.main_window: Error for ADVENZYMES: Options: No expiry dates returned for ADVENZYMES
+2026-03-15 14:48:40,306 WARNING ui.data_manager: Options error: ADVENZYMES — No expiry dates returned for ADVENZYMES
+2026-03-15 14:48:40,306 ERROR ui.main_window: Error for ADVENZYMES: Options: No expiry dates returned for ADVENZYMES
+2026-03-15 14:50:59,568 INFO ui.sidebar: Manual symbol entry: NH
+2026-03-15 14:50:59,571 INFO ui.sidebar: Symbol selected from combo: NH
+2026-03-15 14:50:59,571 INFO ui.main_window: Symbol changed → immediate pipeline: NH
+2026-03-15 14:50:59,572 INFO ui.data_manager: DataManager.refresh: NH
+2026-03-15 14:50:59,573 INFO ui.workers: PriceWorker start: NH
+2026-03-15 14:50:59,575 INFO ui.main_window: Symbol changed → immediate pipeline: NH
+2026-03-15 14:50:59,575 INFO ui.workers: OptionsWorker start: NH
+2026-03-15 14:50:59,578 INFO ui.data_manager: DataManager.refresh: NH
+2026-03-15 14:50:59,583 INFO ui.workers: PriceWorker start: NH
+2026-03-15 14:50:59,583 INFO ui.workers: OptionsWorker start: NH
+2026-03-15 14:51:00,062 WARNING ui.workers: OptionsWorker empty: NH — No expiry dates returned for NH
+2026-03-15 14:51:00,063 WARNING ui.data_manager: Options error: NH — No expiry dates returned for NH
+2026-03-15 14:51:00,064 ERROR ui.main_window: Error for NH: Options: No expiry dates returned for NH
+2026-03-15 14:51:00,078 WARNING ui.workers: OptionsWorker empty: NH — No expiry dates returned for NH
+2026-03-15 14:51:00,079 WARNING ui.data_manager: Options error: NH — No expiry dates returned for NH
+2026-03-15 14:51:00,079 ERROR ui.main_window: Error for NH: Options: No expiry dates returned for NH
+2026-03-15 14:51:00,407 INFO ui.workers: PriceWorker done: NH in 0.8s (117 bars)
+2026-03-15 14:51:00,407 INFO ui.data_manager: Price ready: NH — ✓ NH.NS · 117 × 4h bars
+2026-03-15 14:51:00,427 INFO ui.workers: PriceWorker done: NH in 0.8s (117 bars)
+2026-03-15 14:51:00,427 INFO ui.main_window: Spot updated: NH = 1672.00
+2026-03-15 14:51:00,503 INFO ui.main_window: PriceSignals ready: NH — WR=-94.6 bias=BEARISH pos=MID_BAND_BROKEN vol=NORMAL
+2026-03-15 14:51:00,503 INFO ui.data_manager: Analytics complete: NH — viability=50 sizing=HALF label=NEUTRAL
+2026-03-15 14:51:00,815 INFO ui.main_window: Context ready: NH — score=50 sizing=HALF label=NEUTRAL regime=UNKNOWN
+2026-03-15 14:51:00,815 INFO ui.workers: SingleFilingWorker start: NH
+2026-03-15 14:51:00,816 INFO ui.data_manager: Price ready: NH — ✓ NH.NS · 117 × 4h bars
+2026-03-15 14:51:00,816 INFO ui.main_window: Spot updated: NH = 1672.00
+2026-03-15 14:51:00,890 INFO ui.main_window: PriceSignals ready: NH — WR=-94.6 bias=BEARISH pos=MID_BAND_BROKEN vol=NORMAL
+2026-03-15 14:51:00,891 INFO ui.data_manager: Analytics complete: NH — viability=50 sizing=HALF label=NEUTRAL
+2026-03-15 14:51:01,221 INFO ui.main_window: Context ready: NH — score=50 sizing=HALF label=NEUTRAL regime=UNKNOWN
+2026-03-15 14:51:01,222 INFO ui.workers: SingleFilingWorker start: NH
+2026-03-15 14:51:20,456 INFO ui.main_window: Manual refresh: NH
+2026-03-15 14:51:20,459 INFO ui.data_manager: DataManager.refresh: NH
+2026-03-15 14:51:20,459 INFO ui.workers: PriceWorker start: NH
+2026-03-15 14:51:20,459 INFO ui.workers: OptionsWorker start: NH
+2026-03-15 14:51:20,859 INFO ui.workers: PriceWorker done: NH in 0.4s (117 bars)
+2026-03-15 14:51:20,859 INFO ui.data_manager: Price ready: NH — ✓ NH.NS · 117 × 4h bars
+2026-03-15 14:51:20,860 INFO ui.main_window: Spot updated: NH = 1672.00
+2026-03-15 14:51:20,934 INFO ui.main_window: PriceSignals ready: NH — WR=-94.6 bias=BEARISH pos=MID_BAND_BROKEN vol=NORMAL
+2026-03-15 14:51:20,935 INFO ui.data_manager: Analytics complete: NH — viability=50 sizing=HALF label=NEUTRAL
+2026-03-15 14:51:20,980 WARNING ui.workers: OptionsWorker empty: NH — No expiry dates returned for NH
+2026-03-15 14:51:21,241 INFO ui.main_window: Context ready: NH — score=50 sizing=HALF label=NEUTRAL regime=UNKNOWN
+2026-03-15 14:51:21,241 INFO ui.workers: SingleFilingWorker start: NH
+2026-03-15 14:51:21,275 WARNING ui.data_manager: Options error: NH — No expiry dates returned for NH
+2026-03-15 14:51:21,276 ERROR ui.main_window: Error for NH: Options: No expiry dates returned for NH
+2026-03-15 14:52:34,142 INFO ui.sidebar: Symbol selected from combo: DMART
+2026-03-15 14:52:34,145 INFO ui.main_window: Symbol changed → immediate pipeline: DMART
+2026-03-15 14:52:34,147 INFO ui.data_manager: DataManager.refresh: DMART
+2026-03-15 14:52:34,148 INFO ui.workers: PriceWorker start: DMART
+2026-03-15 14:52:34,152 INFO ui.workers: OptionsWorker start: DMART
+2026-03-15 14:52:34,490 INFO ui.workers: PriceWorker done: DMART in 0.3s (117 bars)
+2026-03-15 14:52:34,491 INFO ui.data_manager: Price ready: DMART — ✓ DMART.NS · 117 × 4h bars
+2026-03-15 14:52:34,491 INFO ui.main_window: Spot updated: DMART = 3830.00
+2026-03-15 14:52:34,571 INFO ui.main_window: PriceSignals ready: DMART — WR=-64.0 bias=BEARISH pos=MID_BAND_BROKEN vol=NORMAL
+2026-03-15 14:52:34,571 INFO ui.data_manager: Analytics complete: DMART — viability=50 sizing=HALF label=NEUTRAL
+2026-03-15 14:52:34,896 INFO ui.main_window: Context ready: DMART — score=50 sizing=HALF label=NEUTRAL regime=UNKNOWN
+2026-03-15 14:52:34,896 INFO ui.workers: SingleFilingWorker start: DMART
+2026-03-15 14:52:37,290 INFO ui.workers: OptionsWorker done: DMART in 3.1s (55 rows)
+2026-03-15 14:52:37,290 INFO ui.data_manager: Options ready: DMART — ✓ 2 expiries downloaded for DMART
+2026-03-15 14:52:37,481 INFO ui.data_manager: Analytics complete: DMART — viability=17 sizing=SKIP label=AVOID
+2026-03-15 14:52:37,936 INFO ui.main_window: Context ready: DMART — score=17 sizing=SKIP label=AVOID regime=PINNING
+2026-03-15 14:52:37,937 INFO ui.workers: SingleFilingWorker start: DMART
+2026-03-15 14:57:33,803 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-15 14:57:44,807 INFO ui.data_manager: Freshness → STALE
+2026-03-15 15:02:33,803 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-15 15:07:33,816 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-15 15:12:33,804 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-15 15:17:33,806 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-15 15:22:33,805 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-15 15:27:33,962 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-15 15:32:33,817 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-15 15:37:33,808 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-15 15:42:33,808 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-15 15:47:33,808 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-15 15:52:33,825 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-15 15:57:33,813 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-15 16:02:33,813 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-15 16:07:33,816 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-15 16:12:33,816 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-15 16:17:33,816 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-15 16:22:33,831 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-15 16:31:13,623 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-15 16:32:33,824 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-15 23:25:27,551 INFO nimbus: NIMBUS starting — log path: /Users/srishabh/Monarch/nimbus/nimbus_v6_5fixes/data/nimbus.log
+2026-03-15 23:25:29,187 INFO nimbus: Loaded font: JetBrainsMono-Regular.ttf → ['JetBrains Mono']
+2026-03-15 23:25:29,189 INFO nimbus: Loaded font: JetBrainsMono-Bold.ttf → ['JetBrains Mono']
+2026-03-15 23:25:29,272 INFO nimbus: JetBrains Mono: available ✓
+2026-03-15 23:25:29,272 INFO nimbus: modules/ imported successfully ✓
+2026-03-15 23:25:29,282 INFO ui.data_manager: DataManager initialised
+2026-03-15 23:25:29,290 WARNING ui.data_manager: NIFTY500 pre-warm failed (non-fatal): cannot import name '_get_nifty500' from 'modules.filings_v2' (/Users/srishabh/Monarch/nimbus/nimbus_v6_5fixes/modules/filings_v2.py)
+2026-03-15 23:25:29,290 INFO ui.watchlist_db: Watchlist DB ready: /Users/srishabh/Monarch/nimbus/nimbus_v6_5fixes/ui/../data/watchlist.db
+2026-03-15 23:25:29,549 INFO ui.workers: UniverseWorker start
+2026-03-15 23:25:29,551 INFO ui.workers: UniverseWorker done: 211 symbols in 0.0s
+2026-03-15 23:25:29,658 INFO ui.kite_manager: Kite daily check scheduled for 2026-03-16 09:00 IST (in 574 min)
+2026-03-15 23:25:29,658 INFO ui.main_window: MainWindow initialised — Phase 7 ready
+2026-03-15 23:25:30,035 INFO nimbus: MainWindow shown — Phase 0 gate open
+2026-03-15 23:25:30,213 INFO ui.data_manager: Universe ready: 211 symbols
+2026-03-15 23:25:30,214 INFO ui.main_window: Universe loaded: 211 symbols
+2026-03-15 23:25:30,389 INFO ui.main_window: Auto-loading initial symbol: NIFTY
+2026-03-15 23:25:30,389 INFO ui.main_window: Symbol changed → immediate pipeline: NIFTY
+2026-03-15 23:25:30,389 INFO ui.data_manager: DataManager.refresh: NIFTY
+2026-03-15 23:25:30,389 INFO ui.workers: PriceWorker start: NIFTY
+2026-03-15 23:25:30,390 INFO ui.workers: OptionsWorker start: NIFTY
+2026-03-15 23:25:31,435 INFO ui.kite_manager: No Kite session file — yfinance fallback
+2026-03-15 23:25:31,436 INFO ui.main_window: Kite unavailable (No session file) — yfinance polling active
+2026-03-15 23:25:32,270 INFO ui.workers: PriceWorker done: NIFTY in 1.9s (117 bars)
+2026-03-15 23:25:32,270 INFO ui.data_manager: Price ready: NIFTY — ✓ ^NSEI · 117 × 4h bars
+2026-03-15 23:25:32,271 INFO ui.main_window: Spot updated: NIFTY = 23170.90
+2026-03-15 23:25:32,306 INFO ui.main_window: PriceSignals ready: NIFTY — WR=-97.9 bias=BEARISH pos=MID_BAND_BROKEN vol=EXPANDED
+2026-03-15 23:25:32,306 INFO ui.data_manager: Analytics complete: NIFTY — viability=50 sizing=HALF label=NEUTRAL
+2026-03-15 23:25:32,601 INFO ui.workers: OptionsWorker done: NIFTY in 2.2s (418 rows)
+2026-03-15 23:25:32,659 INFO ui.main_window: Context ready: NIFTY — score=50 sizing=HALF label=NEUTRAL regime=UNKNOWN
+2026-03-15 23:25:32,660 INFO ui.workers: SingleFilingWorker start: NIFTY
+2026-03-15 23:25:32,709 INFO ui.data_manager: Options ready: NIFTY — ✓ 3 expiries downloaded for NIFTY
+2026-03-15 23:25:37,137 INFO ui.data_manager: Analytics complete: NIFTY — viability=15 sizing=SKIP label=AVOID
+2026-03-15 23:25:37,606 INFO ui.main_window: Context ready: NIFTY — score=15 sizing=SKIP label=AVOID regime=TREND-FRIENDLY
+2026-03-15 23:25:37,607 INFO ui.workers: SingleFilingWorker start: NIFTY
+2026-03-15 23:25:48,271 INFO ui.sidebar: Symbol selected from combo: MANKIND
+2026-03-15 23:25:48,274 INFO ui.main_window: Symbol changed → immediate pipeline: MANKIND
+2026-03-15 23:25:48,276 INFO ui.data_manager: DataManager.refresh: MANKIND
+2026-03-15 23:25:48,278 INFO ui.workers: PriceWorker start: MANKIND
+2026-03-15 23:25:48,279 INFO ui.workers: OptionsWorker start: MANKIND
+2026-03-15 23:25:49,113 INFO ui.workers: PriceWorker done: MANKIND in 0.8s (118 bars)
+2026-03-15 23:25:49,114 INFO ui.data_manager: Price ready: MANKIND — ✓ MANKIND.NS · 118 × 4h bars
+2026-03-15 23:25:49,114 INFO ui.main_window: Spot updated: MANKIND = 2140.00
+2026-03-15 23:25:49,194 INFO ui.main_window: PriceSignals ready: MANKIND — WR=-53.7 bias=BEARISH pos=MID_BAND_BROKEN vol=NORMAL
+2026-03-15 23:25:49,194 INFO ui.data_manager: Analytics complete: MANKIND — viability=50 sizing=HALF label=NEUTRAL
+2026-03-15 23:25:49,517 INFO ui.main_window: Context ready: MANKIND — score=50 sizing=HALF label=NEUTRAL regime=UNKNOWN
+2026-03-15 23:25:49,517 INFO ui.workers: SingleFilingWorker start: MANKIND
+2026-03-15 23:25:50,942 INFO modules.filings_v2: [filings_v2] NIFTY500 (API): 501 symbols
+2026-03-15 23:25:52,101 INFO ui.workers: OptionsWorker done: MANKIND in 3.8s (80 rows)
+2026-03-15 23:25:52,102 INFO ui.data_manager: Options ready: MANKIND — ✓ 2 expiries downloaded for MANKIND
+2026-03-15 23:25:52,488 INFO ui.data_manager: Analytics complete: MANKIND — viability=17 sizing=SKIP label=AVOID
+2026-03-15 23:25:52,883 INFO ui.main_window: Context ready: MANKIND — score=17 sizing=SKIP label=AVOID regime=PINNING
+2026-03-15 23:25:52,884 INFO ui.workers: SingleFilingWorker start: MANKIND
+2026-03-15 23:26:07,023 INFO ui.sidebar: Symbol selected from combo: CGPOWER
+2026-03-15 23:26:07,024 INFO ui.main_window: Symbol changed → immediate pipeline: CGPOWER
+2026-03-15 23:26:07,025 INFO ui.data_manager: DataManager.refresh: CGPOWER
+2026-03-15 23:26:07,025 INFO ui.workers: PriceWorker start: CGPOWER
+2026-03-15 23:26:07,026 INFO ui.workers: OptionsWorker start: CGPOWER
+2026-03-15 23:26:07,815 INFO ui.workers: PriceWorker done: CGPOWER in 0.8s (117 bars)
+2026-03-15 23:26:07,815 INFO ui.data_manager: Price ready: CGPOWER — ✓ CGPOWER.NS · 117 × 4h bars
+2026-03-15 23:26:07,816 INFO ui.main_window: Spot updated: CGPOWER = 708.50
+2026-03-15 23:26:07,894 INFO ui.main_window: PriceSignals ready: CGPOWER — WR=-55.8 bias=NEUTRAL pos=MID_BAND_BROKEN vol=NORMAL
+2026-03-15 23:26:07,894 INFO ui.data_manager: Analytics complete: CGPOWER — viability=50 sizing=HALF label=NEUTRAL
+2026-03-15 23:26:08,220 INFO ui.main_window: Context ready: CGPOWER — score=50 sizing=HALF label=NEUTRAL regime=UNKNOWN
+2026-03-15 23:26:08,220 INFO ui.workers: SingleFilingWorker start: CGPOWER
+2026-03-15 23:26:10,943 INFO ui.workers: OptionsWorker done: CGPOWER in 3.9s (58 rows)
+2026-03-15 23:26:10,944 INFO ui.data_manager: Options ready: CGPOWER — ✓ 2 expiries downloaded for CGPOWER
+2026-03-15 23:26:11,186 INFO ui.data_manager: Analytics complete: CGPOWER — viability=37 sizing=SKIP label=AVOID
+2026-03-15 23:26:11,501 INFO ui.main_window: Context ready: CGPOWER — score=37 sizing=SKIP label=AVOID regime=PINNING
+2026-03-15 23:26:11,501 INFO ui.workers: SingleFilingWorker start: CGPOWER
+2026-03-15 23:26:22,320 INFO ui.sidebar: Symbol selected from combo: COALINDIA
+2026-03-15 23:26:22,322 INFO ui.main_window: Symbol changed → immediate pipeline: COALINDIA
+2026-03-15 23:26:22,324 INFO ui.data_manager: DataManager.refresh: COALINDIA
+2026-03-15 23:26:22,324 INFO ui.workers: PriceWorker start: COALINDIA
+2026-03-15 23:26:22,325 INFO ui.workers: OptionsWorker start: COALINDIA
+2026-03-15 23:26:22,628 INFO ui.workers: PriceWorker done: COALINDIA in 0.3s (117 bars)
+2026-03-15 23:26:22,634 INFO ui.data_manager: Price ready: COALINDIA — ✓ COALINDIA.NS · 117 × 4h bars
+2026-03-15 23:26:22,635 INFO ui.main_window: Spot updated: COALINDIA = 466.50
+2026-03-15 23:26:22,716 INFO ui.main_window: PriceSignals ready: COALINDIA — WR=-15.1 bias=BULLISH pos=RIDING_UPPER vol=EXPANDED
+2026-03-15 23:26:22,716 INFO ui.data_manager: Analytics complete: COALINDIA — viability=50 sizing=HALF label=NEUTRAL
+2026-03-15 23:26:23,029 INFO ui.main_window: Context ready: COALINDIA — score=50 sizing=HALF label=NEUTRAL regime=UNKNOWN
+2026-03-15 23:26:23,030 INFO ui.workers: SingleFilingWorker start: COALINDIA
+2026-03-15 23:26:25,692 INFO ui.workers: OptionsWorker done: COALINDIA in 3.4s (162 rows)
+2026-03-15 23:26:25,694 INFO ui.data_manager: Options ready: COALINDIA — ✓ 3 expiries downloaded for COALINDIA
+2026-03-15 23:26:26,794 INFO ui.data_manager: Analytics complete: COALINDIA — viability=64 sizing=HALF label=CAUTION
+2026-03-15 23:26:27,101 INFO ui.main_window: Context ready: COALINDIA — score=64 sizing=HALF label=CAUTION regime=PINNING
+2026-03-15 23:26:27,102 INFO ui.workers: SingleFilingWorker start: COALINDIA
+2026-03-15 23:28:38,582 INFO nimbus: NIMBUS starting — log path: /Users/srishabh/Monarch/nimbus/nimbus_v6_5fixes/data/nimbus.log
+2026-03-15 23:28:40,167 INFO nimbus: Loaded font: JetBrainsMono-Regular.ttf → ['JetBrains Mono']
+2026-03-15 23:28:40,169 INFO nimbus: Loaded font: JetBrainsMono-Bold.ttf → ['JetBrains Mono']
+2026-03-15 23:28:40,254 INFO nimbus: JetBrains Mono: available ✓
+2026-03-15 23:28:40,254 INFO nimbus: modules/ imported successfully ✓
+2026-03-15 23:28:40,262 INFO ui.data_manager: DataManager initialised
+2026-03-15 23:28:40,266 INFO ui.watchlist_db: Watchlist DB ready: /Users/srishabh/Monarch/nimbus/nimbus_v6_5fixes/ui/../data/watchlist.db
+2026-03-15 23:28:40,503 INFO ui.workers: UniverseWorker start
+2026-03-15 23:28:40,504 INFO ui.workers: UniverseWorker done: 211 symbols in 0.0s
+2026-03-15 23:28:40,609 INFO ui.kite_manager: Kite daily check scheduled for 2026-03-16 09:00 IST (in 571 min)
+2026-03-15 23:28:40,609 INFO ui.main_window: MainWindow initialised — Phase 7 ready
+2026-03-15 23:28:40,990 INFO nimbus: MainWindow shown — Phase 0 gate open
+2026-03-15 23:28:40,997 INFO modules.filings_v2: [filings_v2] NIFTY500 (API): 501 symbols
+2026-03-15 23:28:40,998 INFO ui.data_manager: NIFTY500 pre-warm: 501 symbols cached
+2026-03-15 23:28:41,156 INFO ui.data_manager: Universe ready: 211 symbols
+2026-03-15 23:28:41,156 INFO ui.main_window: Universe loaded: 211 symbols
+2026-03-15 23:28:41,322 INFO ui.main_window: Auto-loading initial symbol: NIFTY
+2026-03-15 23:28:41,322 INFO ui.main_window: Symbol changed → immediate pipeline: NIFTY
+2026-03-15 23:28:41,322 INFO ui.data_manager: DataManager.refresh: NIFTY
+2026-03-15 23:28:41,322 INFO ui.workers: PriceWorker start: NIFTY
+2026-03-15 23:28:41,322 INFO ui.workers: OptionsWorker start: NIFTY
+2026-03-15 23:28:42,405 INFO ui.kite_manager: No Kite session file — yfinance fallback
+2026-03-15 23:28:42,406 INFO ui.main_window: Kite unavailable (No session file) — yfinance polling active
+2026-03-15 23:28:42,798 INFO ui.workers: PriceWorker done: NIFTY in 1.5s (117 bars)
+2026-03-15 23:28:42,798 INFO ui.data_manager: Price ready: NIFTY — ✓ ^NSEI · 117 × 4h bars
+2026-03-15 23:28:42,798 INFO ui.main_window: Spot updated: NIFTY = 23170.90
+2026-03-15 23:28:42,835 INFO ui.main_window: PriceSignals ready: NIFTY — WR=-97.9 bias=BEARISH pos=MID_BAND_BROKEN vol=EXPANDED
+2026-03-15 23:28:42,835 INFO ui.data_manager: Analytics complete: NIFTY — viability=50 sizing=HALF label=NEUTRAL
+2026-03-15 23:28:43,248 INFO ui.main_window: Context ready: NIFTY — score=50 sizing=HALF label=NEUTRAL regime=UNKNOWN
+2026-03-15 23:28:43,249 INFO ui.workers: SingleFilingWorker start: NIFTY
+2026-03-15 23:28:44,327 INFO ui.workers: OptionsWorker done: NIFTY in 3.0s (418 rows)
+2026-03-15 23:28:44,327 INFO ui.data_manager: Options ready: NIFTY — ✓ 3 expiries downloaded for NIFTY
+2026-03-15 23:28:48,731 INFO ui.data_manager: Analytics complete: NIFTY — viability=15 sizing=SKIP label=AVOID
+2026-03-15 23:28:49,095 INFO ui.main_window: Context ready: NIFTY — score=15 sizing=SKIP label=AVOID regime=TREND-FRIENDLY
+2026-03-15 23:28:49,096 INFO ui.workers: SingleFilingWorker start: NIFTY
+2026-03-15 23:29:05,571 INFO ui.sidebar: Symbol selected from combo: LT
+2026-03-15 23:29:05,573 INFO ui.main_window: Symbol changed → immediate pipeline: LT
+2026-03-15 23:29:05,575 INFO ui.data_manager: DataManager.refresh: LT
+2026-03-15 23:29:05,576 INFO ui.workers: PriceWorker start: LT
+2026-03-15 23:29:05,577 INFO ui.workers: OptionsWorker start: LT
+2026-03-15 23:29:06,369 INFO ui.workers: PriceWorker done: LT in 0.8s (118 bars)
+2026-03-15 23:29:06,369 INFO ui.data_manager: Price ready: LT — ✓ LT.NS · 118 × 4h bars
+2026-03-15 23:29:06,370 INFO ui.main_window: Spot updated: LT = 3445.00
+2026-03-15 23:29:06,449 INFO ui.main_window: PriceSignals ready: LT — WR=-98.0 bias=BEARISH pos=MID_BAND_BROKEN vol=EXPANDED
+2026-03-15 23:29:06,449 INFO ui.data_manager: Analytics complete: LT — viability=50 sizing=HALF label=NEUTRAL
+2026-03-15 23:29:06,852 INFO ui.main_window: Context ready: LT — score=50 sizing=HALF label=NEUTRAL regime=UNKNOWN
+2026-03-15 23:29:06,853 INFO ui.workers: SingleFilingWorker start: LT
+2026-03-15 23:29:08,130 INFO ui.workers: OptionsWorker done: LT in 2.6s (195 rows)
+2026-03-15 23:29:08,131 INFO ui.data_manager: Options ready: LT — ✓ 3 expiries downloaded for LT
+2026-03-15 23:29:09,761 INFO ui.data_manager: Analytics complete: LT — viability=9 sizing=SKIP label=AVOID
+2026-03-15 23:29:10,082 INFO ui.main_window: Context ready: LT — score=9 sizing=SKIP label=AVOID regime=PINNING
+2026-03-15 23:29:10,083 INFO ui.workers: SingleFilingWorker start: LT
+2026-03-15 23:29:32,723 INFO ui.sidebar: Symbol selected from combo: ONGC
+2026-03-15 23:29:32,725 INFO ui.main_window: Symbol changed → immediate pipeline: ONGC
+2026-03-15 23:29:32,726 INFO ui.data_manager: DataManager.refresh: ONGC
+2026-03-15 23:29:32,727 INFO ui.workers: PriceWorker start: ONGC
+2026-03-15 23:29:32,728 INFO ui.workers: OptionsWorker start: ONGC
+2026-03-15 23:29:33,515 INFO ui.workers: PriceWorker done: ONGC in 0.8s (117 bars)
+2026-03-15 23:29:33,516 INFO ui.data_manager: Price ready: ONGC — ✓ ONGC.NS · 117 × 4h bars
+2026-03-15 23:29:33,516 INFO ui.main_window: Spot updated: ONGC = 264.20
+2026-03-15 23:29:33,600 INFO ui.main_window: PriceSignals ready: ONGC — WR=-96.1 bias=BEARISH pos=MID_BAND_BROKEN vol=NORMAL
+2026-03-15 23:29:33,600 INFO ui.data_manager: Analytics complete: ONGC — viability=50 sizing=HALF label=NEUTRAL
+2026-03-15 23:29:33,944 INFO ui.main_window: Context ready: ONGC — score=50 sizing=HALF label=NEUTRAL regime=UNKNOWN
+2026-03-15 23:29:33,944 INFO ui.workers: SingleFilingWorker start: ONGC
+2026-03-15 23:29:35,284 INFO ui.workers: OptionsWorker done: ONGC in 2.6s (187 rows)
+2026-03-15 23:29:35,285 INFO ui.data_manager: Options ready: ONGC — ✓ 3 expiries downloaded for ONGC
+2026-03-15 23:29:38,940 INFO ui.data_manager: Analytics complete: ONGC — viability=17 sizing=SKIP label=AVOID
+2026-03-15 23:29:39,389 INFO ui.main_window: Context ready: ONGC — score=17 sizing=SKIP label=AVOID regime=PINNING
+2026-03-15 23:29:39,390 INFO ui.workers: SingleFilingWorker start: ONGC
+2026-03-15 23:29:57,455 INFO ui.sidebar: Symbol selected from combo: DMART
+2026-03-15 23:29:57,457 INFO ui.main_window: Symbol changed → immediate pipeline: DMART
+2026-03-15 23:29:57,458 INFO ui.data_manager: DataManager.refresh: DMART
+2026-03-15 23:29:57,459 INFO ui.workers: PriceWorker start: DMART
+2026-03-15 23:29:57,459 INFO ui.workers: OptionsWorker start: DMART
+2026-03-15 23:29:57,774 INFO ui.workers: PriceWorker done: DMART in 0.3s (117 bars)
+2026-03-15 23:29:57,774 INFO ui.data_manager: Price ready: DMART — ✓ DMART.NS · 117 × 4h bars
+2026-03-15 23:29:57,775 INFO ui.main_window: Spot updated: DMART = 3830.00
+2026-03-15 23:29:57,856 INFO ui.main_window: PriceSignals ready: DMART — WR=-64.0 bias=BEARISH pos=MID_BAND_BROKEN vol=NORMAL
+2026-03-15 23:29:57,857 INFO ui.data_manager: Analytics complete: DMART — viability=50 sizing=HALF label=NEUTRAL
+2026-03-15 23:29:58,165 INFO ui.main_window: Context ready: DMART — score=50 sizing=HALF label=NEUTRAL regime=UNKNOWN
+2026-03-15 23:29:58,165 INFO ui.workers: SingleFilingWorker start: DMART
+2026-03-15 23:30:01,343 INFO ui.workers: OptionsWorker done: DMART in 3.9s (55 rows)
+2026-03-15 23:30:01,344 INFO ui.data_manager: Options ready: DMART — ✓ 2 expiries downloaded for DMART
+2026-03-15 23:30:01,531 INFO ui.data_manager: Analytics complete: DMART — viability=17 sizing=SKIP label=AVOID
+2026-03-15 23:30:01,916 INFO ui.main_window: Context ready: DMART — score=17 sizing=SKIP label=AVOID regime=PINNING
+2026-03-15 23:30:01,917 INFO ui.workers: SingleFilingWorker start: DMART
+2026-03-15 23:32:14,725 INFO ui.sidebar: Symbol selected from combo: INDUSTOWER
+2026-03-15 23:32:14,728 INFO ui.main_window: Symbol changed → immediate pipeline: INDUSTOWER
+2026-03-15 23:32:14,729 INFO ui.data_manager: DataManager.refresh: INDUSTOWER
+2026-03-15 23:32:14,730 INFO ui.workers: PriceWorker start: INDUSTOWER
+2026-03-15 23:32:14,730 INFO ui.workers: OptionsWorker start: INDUSTOWER
+2026-03-15 23:32:15,552 INFO ui.workers: PriceWorker done: INDUSTOWER in 0.8s (117 bars)
+2026-03-15 23:32:15,552 INFO ui.data_manager: Price ready: INDUSTOWER — ✓ INDUSTOWER.NS · 117 × 4h bars
+2026-03-15 23:32:15,553 INFO ui.main_window: Spot updated: INDUSTOWER = 425.00
+2026-03-15 23:32:15,635 INFO ui.main_window: PriceSignals ready: INDUSTOWER — WR=-96.1 bias=BEARISH pos=MID_BAND_BROKEN vol=NORMAL
+2026-03-15 23:32:15,636 INFO ui.data_manager: Analytics complete: INDUSTOWER — viability=50 sizing=HALF label=NEUTRAL
+2026-03-15 23:32:15,941 INFO ui.main_window: Context ready: INDUSTOWER — score=50 sizing=HALF label=NEUTRAL regime=UNKNOWN
+2026-03-15 23:32:15,941 INFO ui.workers: SingleFilingWorker start: INDUSTOWER
+2026-03-15 23:32:17,640 INFO ui.workers: OptionsWorker done: INDUSTOWER in 2.9s (59 rows)
+2026-03-15 23:32:17,641 INFO ui.data_manager: Options ready: INDUSTOWER — ✓ 2 expiries downloaded for INDUSTOWER
+2026-03-15 23:32:17,897 INFO ui.data_manager: Analytics complete: INDUSTOWER — viability=17 sizing=SKIP label=AVOID
+2026-03-15 23:32:18,314 INFO ui.main_window: Context ready: INDUSTOWER — score=17 sizing=SKIP label=AVOID regime=PINNING
+2026-03-15 23:32:18,314 INFO ui.workers: SingleFilingWorker start: INDUSTOWER
+2026-03-15 23:32:42,552 INFO ui.sidebar: Symbol selected from combo: SHRIRAMFIN
+2026-03-15 23:32:42,554 INFO ui.main_window: Symbol changed → immediate pipeline: SHRIRAMFIN
+2026-03-15 23:32:42,554 INFO ui.data_manager: DataManager.refresh: SHRIRAMFIN
+2026-03-15 23:32:42,555 INFO ui.workers: PriceWorker start: SHRIRAMFIN
+2026-03-15 23:32:42,556 INFO ui.workers: OptionsWorker start: SHRIRAMFIN
+2026-03-15 23:32:43,700 INFO ui.workers: PriceWorker done: SHRIRAMFIN in 1.1s (118 bars)
+2026-03-15 23:32:43,700 INFO ui.data_manager: Price ready: SHRIRAMFIN — ✓ SHRIRAMFIN.NS · 118 × 4h bars
+2026-03-15 23:32:43,700 INFO ui.main_window: Spot updated: SHRIRAMFIN = 1005.90
+2026-03-15 23:32:43,778 INFO ui.main_window: PriceSignals ready: SHRIRAMFIN — WR=-60.3 bias=BEARISH pos=MID_BAND_BROKEN vol=NORMAL
+2026-03-15 23:32:43,778 INFO ui.data_manager: Analytics complete: SHRIRAMFIN — viability=50 sizing=HALF label=NEUTRAL
+2026-03-15 23:32:44,084 INFO ui.main_window: Context ready: SHRIRAMFIN — score=50 sizing=HALF label=NEUTRAL regime=UNKNOWN
+2026-03-15 23:32:44,085 INFO ui.workers: SingleFilingWorker start: SHRIRAMFIN
+2026-03-15 23:32:45,965 INFO ui.workers: OptionsWorker done: SHRIRAMFIN in 3.4s (84 rows)
+2026-03-15 23:32:45,966 INFO ui.data_manager: Options ready: SHRIRAMFIN — ✓ 3 expiries downloaded for SHRIRAMFIN
+2026-03-15 23:32:46,344 INFO ui.data_manager: Analytics complete: SHRIRAMFIN — viability=27 sizing=SKIP label=AVOID
+2026-03-15 23:32:46,680 INFO ui.main_window: Context ready: SHRIRAMFIN — score=27 sizing=SKIP label=AVOID regime=PINNING
+2026-03-15 23:32:46,680 INFO ui.workers: SingleFilingWorker start: SHRIRAMFIN
+2026-03-15 23:37:42,843 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-15 23:38:09,858 INFO ui.data_manager: Freshness → STALE
+2026-03-15 23:39:47,464 INFO nimbus: NIMBUS starting — log path: /Users/srishabh/Monarch/nimbus/nimbus_v6_5fixes/data/nimbus.log
+2026-03-15 23:39:48,931 INFO nimbus: Loaded font: JetBrainsMono-Regular.ttf → ['JetBrains Mono']
+2026-03-15 23:39:48,933 INFO nimbus: Loaded font: JetBrainsMono-Bold.ttf → ['JetBrains Mono']
+2026-03-15 23:39:49,017 INFO nimbus: JetBrains Mono: available ✓
+2026-03-15 23:39:49,017 INFO nimbus: modules/ imported successfully ✓
+2026-03-15 23:39:49,019 INFO ui.data_manager: DataManager initialised
+2026-03-15 23:39:49,023 INFO ui.watchlist_db: Watchlist DB ready: /Users/srishabh/Monarch/nimbus/nimbus_v6_5fixes/ui/../data/watchlist.db
+2026-03-15 23:39:49,200 INFO ui.workers: UniverseWorker start
+2026-03-15 23:39:49,201 INFO ui.workers: UniverseWorker done: 211 symbols in 0.0s
+2026-03-15 23:39:49,290 INFO ui.kite_manager: Kite daily check scheduled for 2026-03-16 09:00 IST (in 560 min)
+2026-03-15 23:39:49,290 INFO ui.main_window: MainWindow initialised — Phase 7 ready
+2026-03-15 23:39:49,627 INFO nimbus: MainWindow shown — Phase 0 gate open
+2026-03-15 23:39:49,762 INFO modules.filings_v2: [filings_v2] NIFTY500 (API): 501 symbols
+2026-03-15 23:39:49,764 INFO ui.data_manager: NIFTY500 pre-warm: 501 symbols cached
+2026-03-15 23:39:49,766 INFO ui.data_manager: Universe ready: 211 symbols
+2026-03-15 23:39:49,766 INFO ui.main_window: Universe loaded: 211 symbols
+2026-03-15 23:39:49,922 INFO ui.main_window: Auto-loading initial symbol: NIFTY
+2026-03-15 23:39:49,923 INFO ui.main_window: Symbol changed → immediate pipeline: NIFTY
+2026-03-15 23:39:49,923 INFO ui.data_manager: DataManager.refresh: NIFTY
+2026-03-15 23:39:49,923 INFO ui.workers: PriceWorker start: NIFTY
+2026-03-15 23:39:49,923 INFO ui.workers: OptionsWorker start: NIFTY
+2026-03-15 23:39:51,063 INFO ui.kite_manager: No Kite session file — yfinance fallback
+2026-03-15 23:39:51,063 INFO ui.main_window: Kite unavailable (No session file) — yfinance polling active
+2026-03-15 23:39:51,832 INFO ui.workers: PriceWorker done: NIFTY in 1.9s (117 bars)
+2026-03-15 23:39:51,832 INFO ui.data_manager: Price ready: NIFTY — ✓ ^NSEI · 117 × 4h bars
+2026-03-15 23:39:51,833 INFO ui.main_window: Spot updated: NIFTY = 23170.90
+2026-03-15 23:39:51,868 INFO ui.main_window: PriceSignals ready: NIFTY — WR=-97.9 bias=BEARISH pos=MID_BAND_BROKEN vol=EXPANDED
+2026-03-15 23:39:51,868 INFO ui.data_manager: Analytics complete: NIFTY — viability=50 sizing=HALF label=NEUTRAL
+2026-03-15 23:39:52,177 INFO ui.main_window: Context ready: NIFTY — score=50 sizing=HALF label=NEUTRAL regime=UNKNOWN
+2026-03-15 23:39:52,178 INFO ui.workers: SingleFilingWorker start: NIFTY
+2026-03-15 23:39:53,106 INFO ui.workers: OptionsWorker done: NIFTY in 3.2s (418 rows)
+2026-03-15 23:39:53,107 INFO ui.data_manager: Options ready: NIFTY — ✓ 3 expiries downloaded for NIFTY
+2026-03-15 23:39:57,474 INFO ui.data_manager: Analytics complete: NIFTY — viability=15 sizing=SKIP label=AVOID
+2026-03-15 23:39:57,873 INFO ui.main_window: Context ready: NIFTY — score=15 sizing=SKIP label=AVOID regime=TREND-FRIENDLY
+2026-03-15 23:39:57,874 INFO ui.workers: SingleFilingWorker start: NIFTY
+2026-03-15 23:44:49,842 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-15 23:45:18,852 INFO ui.data_manager: Freshness → STALE
+2026-03-15 23:49:49,842 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-15 23:54:49,842 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-15 23:59:49,842 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-16 00:04:49,845 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-16 00:09:49,843 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-16 00:14:49,842 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-16 00:19:49,844 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-16 00:24:49,844 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-16 00:29:49,844 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-16 00:34:49,845 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-16 00:39:49,845 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-16 00:44:49,845 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-16 00:49:49,846 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-16 00:54:49,845 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-16 00:59:49,846 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-16 01:04:49,846 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-16 01:09:49,848 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-16 01:14:49,847 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-16 01:19:49,850 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-16 01:24:49,848 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-16 01:29:49,852 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-16 01:34:49,851 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-16 01:39:49,851 INFO ui.data_manager: Auto-refresh skipped: market closed
+2026-03-16 01:44:30,161 ERROR yfinance: 
+1 Failed download:
+2026-03-16 01:44:30,162 ERROR yfinance: ['NIFTYIT.NS']: YFPricesMissingError('possibly delisted; no price data found  (1d 2026-03-01 -> 2026-03-16)')

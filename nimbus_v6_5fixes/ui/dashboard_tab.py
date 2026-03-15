@@ -103,6 +103,7 @@ class DashboardTab(QWidget):
         self._price_df: Optional[pd.DataFrame] = None
         self._ps: Optional[PriceSignals] = None
         self._ctx: Optional[OptionsContext] = None
+        self._fv = None
         self._build_ui()
 
     def _build_ui(self):
@@ -181,6 +182,33 @@ class DashboardTab(QWidget):
         self._build_panel_c(pc_widget)
         intel.addWidget(_make_scroll_panel(pc_widget, 260), 30)
 
+        fstrip = QFrame()
+        fstrip.setFixedHeight(30)
+        fstrip.setStyleSheet(
+            f"background: {SURFACE}; border: 1px solid {BORDER}; border-radius: 4px;"
+        )
+        fl = QHBoxLayout(fstrip)
+        fl.setContentsMargins(8, 0, 8, 0)
+        fl.setSpacing(6)
+        self._setup_badge = Badge("SETUP: —")
+        self._filing_badge = Badge("NO FILING")
+        fl.addWidget(self._setup_badge)
+        fl.addWidget(self._filing_badge)
+        self._conviction_lbl = QLabel("○○○○○○○○○○")
+        self._conviction_lbl.setFont(QFont(FONT_MONO, 7))
+        self._conviction_lbl.setStyleSheet(f"color: {MUTED};")
+        fl.addWidget(self._conviction_lbl)
+        fl.addSpacing(6)
+        self._filing_detail_lbl = QLabel("Fetching filings…")
+        self._filing_detail_lbl.setFont(QFont(FONT_UI, 7))
+        self._filing_detail_lbl.setStyleSheet(f"color: {MUTED};")
+        fl.addWidget(self._filing_detail_lbl, stretch=1)
+        self._filing_recency_lbl = QLabel("")
+        self._filing_recency_lbl.setFont(QFont(FONT_MONO, 7))
+        self._filing_recency_lbl.setStyleSheet(f"color: {MUTED};")
+        fl.addWidget(self._filing_recency_lbl)
+        root.addWidget(fstrip)
+
         root.addLayout(intel)
 
     # ── Panel A: Regime + Workflow ────────────────────────────────────────────
@@ -234,6 +262,19 @@ class DashboardTab(QWidget):
             f"border-left: 3px solid {EM}; border-radius: 3px; padding: 5px 8px;"
         )
         pa.addWidget(self._verdict)
+
+        pa.addWidget(_sep())
+        pa.addWidget(_h("Filing Intelligence"))
+        sh = QHBoxLayout()
+        self._filing_setup_lbl = _t("SETUP: —", MUTED, 7, bold=True)
+        sh.addWidget(self._filing_setup_lbl, stretch=1)
+        self._filing_conv_badge = Badge("CONV —")
+        sh.addWidget(self._filing_conv_badge)
+        pa.addLayout(sh)
+        self._filing_subject_lbl = _t("", MUTED, 7)
+        self._filing_deal_lbl = _t("", WHITE, 7)
+        pa.addWidget(self._filing_subject_lbl)
+        pa.addWidget(self._filing_deal_lbl)
 
         lay = QVBoxLayout(container)
         lay.setContentsMargins(0, 0, 0, 0)
@@ -313,6 +354,8 @@ class DashboardTab(QWidget):
     # ══════════════════════════════════════════════════════════════════════════
     def on_price_updated(self, symbol, df):
         self._symbol = symbol
+        self._fv = None
+        self._refresh_filing()
         self._price_df = df
         self._sym.setText(symbol)
         if df is not None and not df.empty:
@@ -339,6 +382,8 @@ class DashboardTab(QWidget):
         self._refresh_kpi()
         self._refresh_badges()
         self._update_chart()
+        if self._fv:
+            self._refresh_filing()
 
     def on_context_updated(self, symbol, ctx):
         self._ctx = ctx
@@ -351,6 +396,8 @@ class DashboardTab(QWidget):
         else:
             self._refresh_intel()
         self._update_chart()
+        if self._fv:
+            self._refresh_filing()
 
     def on_spot_updated(self, symbol, spot):
         self._spot = spot
@@ -358,6 +405,111 @@ class DashboardTab(QWidget):
 
     def set_price_df(self, df):
         self._price_df = df
+
+    def on_filing_updated(self, symbol: str, fv):
+        if symbol != self._symbol:
+            return
+        self._fv = fv
+        self._refresh_filing()
+
+    def _refresh_filing(self):
+        from modules.setup_classifier import (
+            classify_setup_v3,
+            OptionsSignalState,
+            MomentumState,
+            SETUP_COLORS,
+        )
+
+        fv, ctx, ps = self._fv, self._ctx, self._ps
+        badge_c = {"BULLISH": EM, "BEARISH": RED}.get(
+            getattr(fv, "badge_color", None), MUTED
+        )
+
+        # Strip
+        if fv is None:
+            self._filing_badge.set_badge("NO FILING", "NEUTRAL")
+            self._filing_detail_lbl.setText("No actionable filing in past 72h")
+            self._filing_detail_lbl.setStyleSheet(f"color: {MUTED};")
+            self._conviction_lbl.setText("○○○○○○○○○○")
+            self._filing_recency_lbl.setText("")
+            self._filing_setup_lbl.setText("SETUP: —")
+            self._filing_subject_lbl.setText("")
+            self._filing_deal_lbl.setText("")
+            self._filing_conv_badge.set_badge("CONV —", "NEUTRAL")
+            return
+
+        self._filing_badge.set_badge(fv.badge_text, fv.badge_color)
+        self._filing_detail_lbl.setText(fv.detail_line)
+        self._filing_detail_lbl.setStyleSheet(f"color: {badge_c};")
+        h = fv.recency_h
+        rec_str = (
+            f"fresh {h:.1f}h"
+            if h < 6
+            else (f"recent {h:.1f}h" if h < 24 else f"{h:.0f}h ago")
+        )
+        self._filing_recency_lbl.setText(rec_str)
+        self._filing_recency_lbl.setStyleSheet(
+            f"color: {EM if h < 6 else (GOLD if h < 24 else MUTED)};"
+        )
+        filled = "●" * fv.conviction + "○" * (10 - fv.conviction)
+        conv_c = EM if fv.conviction >= 7 else (GOLD if fv.conviction >= 4 else MUTED)
+        self._conviction_lbl.setText(filled)
+        self._conviction_lbl.setStyleSheet(f"color: {conv_c};")
+
+        # Setup re-classification
+        setup_label, setup_color = "—", MUTED
+        if ctx and hasattr(ctx, "regime") and ps:
+            try:
+                opts = OptionsSignalState(
+                    gex_regime=ctx.regime.regime,
+                    gex_rising=getattr(ctx.gex, "gex_rising", False),
+                    pcr=getattr(ctx.walls, "pcr_oi", 1.0) or 1.0,
+                    pcr_trending="FLAT",
+                    iv_skew="FLAT",
+                    delta_bias="NEUTRAL",
+                    call_oi_wall_pct=0.0,
+                    pct_to_resistance=getattr(ctx.walls, "resistance_pct", None),
+                    pcroi=getattr(ctx.walls, "pcr_oi", 1.0) or 1.0,
+                )
+                mom = MomentumState(
+                    bb_position=ps.bb_position,
+                    position_state=ps.position_state,
+                    vol_state=ps.vol_state,
+                    wr_phase=ps.wr_phase,
+                    wr_value=ps.wr_value,
+                    wr_in_momentum=ps.wr_in_momentum,
+                )
+                st, _ = classify_setup_v3(
+                    viability_score=ctx.viability.score,
+                    filing_variance=fv.variance,
+                    filing_direction=fv.badge_color,
+                    filing_conviction=fv.conviction,
+                    filing_category=fv.category.value,
+                    opts=opts,
+                    mom=mom,
+                )
+                setup_label = st.value
+                setup_color = SETUP_COLORS.get(st, MUTED)
+            except Exception:
+                setup_label = fv.badge_text.split()[0]
+
+        self._setup_badge.set_badge(f"SETUP: {setup_label}", setup_label)
+        self._filing_setup_lbl.setText(f"SETUP: {setup_label}")
+        self._filing_setup_lbl.setStyleSheet(
+            f"color: {setup_color}; font-weight: bold;"
+        )
+        self._filing_subject_lbl.setText(f"↳ {fv.raw_subject}")
+        self._filing_deal_lbl.setText(fv.detail_line)
+        self._filing_deal_lbl.setStyleSheet(f"color: {badge_c};")
+        conv_text = f"CONV {fv.conviction}/10" + (" ✓" if fv.confirmed else "")
+        self._filing_conv_badge.set_badge(
+            conv_text,
+            (
+                "BULLISH"
+                if fv.conviction >= 7
+                else ("NEUTRAL" if fv.conviction >= 4 else "BEARISH")
+            ),
+        )
 
     def _update_chart(self):
         df = self._price_df
@@ -426,19 +578,19 @@ class DashboardTab(QWidget):
                 self._kpi["DAILY BIAS"].set_delta(
                     f"{ps.daily_bias_pct:+.1f}% vs SMA", bc
                 )
-        if ctx and ctx.walls.pcr_oi:
+        if ctx and hasattr(ctx, "walls") and ctx.walls.pcr_oi:
             pcr = ctx.walls.pcr_oi
             self._kpi["PCR OI"].set_value(
                 f"{pcr:.3f}", EM if pcr >= 1.1 else (RED if pcr < 0.7 else WHITE)
             )
             self._kpi["PCR OI"].set_delta(ctx.walls.pcr_sentiment, MUTED)
-        if ctx:
+        if ctx and hasattr(ctx, "gex"):
             g = ctx.gex.net_gex
             self._kpi["NET GEX"].set_value(
                 f"{g:+,.0f}M", EM if g < 0 else (RED if g > 0 else MUTED)
             )
             self._kpi["NET GEX"].set_delta(ctx.gex.regime, MUTED)
-        if ctx and ctx.expiry.days_remaining < 99:
+        if ctx and hasattr(ctx, "expiry") and ctx.expiry.days_remaining < 99:
             d = ctx.expiry.days_remaining
             self._kpi["TO EXPIRY"].set_value(
                 f"{d}d", RED if d <= 2 else (GOLD if d <= 4 else WHITE)
@@ -455,6 +607,23 @@ class DashboardTab(QWidget):
         ctx, ps = self._ctx, self._ps
         if ctx is None:
             return
+
+        # ── ETFContext: no F&O panels — show viability + ETF badge only ──
+        if not hasattr(ctx, "regime"):
+            v = ctx.viability
+            sc = score_color(v.score)
+            self._pb.set_accent(sc)
+            self._score.setText(str(v.score))
+            self._score.setStyleSheet(f"color: {sc}; font-weight: bold;")
+            self._vlabel.setText(v.label)
+            self._vlabel.setStyleSheet(f"color: {sc}; font-weight: bold;")
+            self._size_badge.set_badge(f"SIZE: {v.sizing}", v.sizing)
+            self._regime_lbl.setText("REGIME: ETF — No options chain")
+            self._regime_lbl.setStyleSheet(f"color: {BLUE}; font-weight: bold;")
+            self._regime_cap.set_badge("ETF", "NEUTRAL")
+            for lr in self._levels:
+                lr.setVisible(False)
+            return  # skip all F&O-specific panel logic below
 
         r = ctx.regime
         rc = {

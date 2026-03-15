@@ -4,43 +4,45 @@ modules/scanner.py
 Universe scanner: evaluate every F&O symbol against NIMBUS entry rules.
 
 Scoring (Section 6 of spec — exact weights, no deviation):
-Momentum (BB + W%R) : 25 pts max
-Regime (GEX/HVL)   : 20 pts max
-Structure (walls)  : 20 pts max
-Expiry / pin risk  : 15 pts max
-Daily bias         : 10 pts max
-Vol state          : 10 pts max
-Total              : 100 pts
+  Momentum (BB + W%R)  : 25 pts max
+  Regime (GEX/HVL)     : 20 pts max
+  Structure (walls)    : 20 pts max
+  Expiry / pin risk    : 15 pts max
+  Daily bias           : 10 pts max
+  Vol state            : 10 pts max
+  Total                : 100 pts
 
 Entry conditions (all must pass for all_filters_pass=True):
-a. 4H close riding upper BB(20,1σ) — RIDING_UPPER only (not FIRST_DIP)
-b. W%R(50) > -20
-c. Daily 20-SMA bias = BULLISH
-d. GEX Regime = TREND_FRIENDLY
-e. % to call resistance >= 5%
-f. DTE >= 5
-g. Spot NOT pinned within 2% of max pain when DTE <= 4
+  a. 4H close riding upper BB(20,1σ) — RIDING_UPPER only (not FIRST_DIP)
+  b. W%R(50) > -20
+  c. Daily 20-SMA bias = BULLISH
+  d. GEX Regime = TREND_FRIENDLY
+  e. % to call resistance >= 5%
+  f. DTE >= 5
+  g. Spot NOT pinned within 2% of max pain when DTE <= 4
 
 Exit conditions (informational, shown in position_state):
-FIRST_DIP       → partial exit (scale 50%) — NOT a new entry signal
-MID_BAND_BROKEN → full exit
+  FIRST_DIP → partial exit (scale 50%) — NOT a new entry signal
+  MID_BAND_BROKEN → full exit
 
 Sizing:
-FULL : all entry pass + vol=SQUEEZE or NORMAL
-HALF : PINNING regime OR DTE 3-4 with elevated pin OR vol=EXPANDED
-SKIP : any hard rule fails
+  FULL  : all entry pass + vol=SQUEEZE or NORMAL
+  HALF  : PINNING regime OR DTE 3-4 with elevated pin OR vol=EXPANDED
+  SKIP  : any hard rule fails
 
-Patch v5.3 fixes applied:
-FIX-5      : FIRST_DIP removed from riding_upper
-FIX-8      : near_mp threshold aligned to 2.0%
-FIX-DTE0   : expiry_risk="HIGH" when DTE=0
-FIX-REGIME : Neutral GEX with resistance_pct < 1.5% → "PINNING"
-FIX-RATE   : max_workers reduced 8 → 3 (kept for scan_universe API compat)
-FIX-DELAY  : _INTER_SYMBOL_DELAY = 1.2s injected at start of each symbol
-FIX-ETF    : analyze_symbol() now routes ETF symbols to _analyze_etf_symbol()
-             which uses volume profile / VSR / VWAP instead of options chain.
-             ETFs return the same flat dict shape so ScanWorker/scanner_tab
-             require no changes.
+Phase 1 additions:
+  - Imports setup_classifier (classify_setup_v3, OptionsSignalState, MomentumState)
+  - _analyze_symbol_inner() builds OptionsSignalState + MomentumState from ctx/ps
+  - Return dict gains: setup_type, setup_detail, setup_color
+  - ScanWorker sort: TRAP first, then SETUP_PRIORITY, then viability_score desc
+
+Patch v5.2 fixes applied (unchanged):
+  FIX-5    : FIRST_DIP removed from riding_upper
+  FIX-8    : near_mp threshold aligned to 2.0%
+  FIX-DTE0 : expiry_risk="HIGH" when DTE=0
+  FIX-REGIME: Neutral GEX with resistance_pct < 1.5% → "PINNING"
+  FIX-RATE : max_workers reduced 8 → 3
+  FIX-DELAY: _INTER_SYMBOL_DELAY = 1.2s
 """
 
 from __future__ import annotations
@@ -58,154 +60,36 @@ import pandas as pd
 from modules.data import get_price_4h, download_options, infer_spot, NSE_LOT_SIZES
 from modules.indicators import add_bollinger, add_williams_r, compute_price_signals
 from modules.analytics import analyze, _parse_dte
-from modules.etf_analyzer import analyze_etf, NSE_ETF_SYMBOLS  # FIX-ETF
+from modules.setup_classifier import (
+    classify_setup_v3,
+    OptionsSignalState,
+    MomentumState,
+    SETUP_COLORS,
+    SETUP_PRIORITY,
+    SetupType,
+)
 
 logger = logging.getLogger(__name__)
 
-# ── NSE rate-limit guard ───────────────────────────────────────────────────────
-# Each symbol requires 1 NSE session + 4-6 API calls. Back-to-back symbols with
-# no delay trigger HTTP 429. 1.2s between symbols = ~0.83 req/sec for sessions.
 _INTER_SYMBOL_DELAY: float = 1.2
 
-_STATE_MAP = {
-    "RIDING_UPPER": "RIDING_UPPER_BAND",
-    "FIRST_DIP": "FIRST_DIP",
-    "MID_BAND_BROKEN": "MID_BAND_BROKEN",
-    "CONSOLIDATING": "BELOW_MID",
-    "UNKNOWN": "BELOW_MID",
-}
-
 # ══════════════════════════════════════════════════════════════════════════════
-# PUBLIC ENTRY POINT — routes F&O vs ETF
+# SINGLE-SYMBOL ANALYSIS
 # ══════════════════════════════════════════════════════════════════════════════
 
 
 def analyze_symbol(symbol: str) -> Optional[dict]:
-    """
-    Run the full NIMBUS signal stack for one symbol.
-
-    FIX-ETF: Routes ETF symbols (GOLDBEES, NIFTYBEES, MON100, etc.) to
-    _analyze_etf_symbol() which uses volume profile / VSR / VWAP.
-    F&O symbols go to the existing _analyze_symbol_inner() path.
-
-    Both paths return the same flat dict shape on the same 100-pt scale,
-    so ScanWorker, scanner_tab, and watchlist require no changes.
-
-    Returns flat dict, or None if data unavailable. Never raises.
-    """
     try:
-        if symbol in NSE_ETF_SYMBOLS:
-            return _analyze_etf_symbol(symbol)
         return _analyze_symbol_inner(symbol)
     except Exception as exc:
         logger.warning(f"[scanner] {symbol} failed: {exc}")
         return None
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# ETF PATH
-# ══════════════════════════════════════════════════════════════════════════════
-
-
-def _analyze_etf_symbol(symbol: str) -> Optional[dict]:
-    """
-    ETF analysis path: volume profile + VSR + VWAP replace options chain.
-    No NSE API calls — yfinance only — but we keep the same delay to avoid
-    yfinance rate limits when scanning the full ETF universe.
-    """
-    time.sleep(_INTER_SYMBOL_DELAY)
-
-    price_df, _ = get_price_4h(symbol, bars=120)
-    if price_df is None or price_df.empty:
-        return None
-
-    price_df = add_bollinger(price_df, period=20, std_dev=1.0)
-    price_df = add_williams_r(price_df, period=50)
-    ps = compute_price_signals(price_df, wr_thresh=-20.0)
-
-    ctx = analyze_etf(symbol, price_df, ps)
-    if ctx is None:
-        return None
-
-    riding_upper = ps.position_state == "RIDING_UPPER"
-    vp = ctx.volume_profile
-    evl = ctx.etf_volume
-    etr = ctx.etf_trend
-
-    passes_momentum = riding_upper and ps.wr_in_momentum
-    passes_structure = vp is not None and vp.spot_vs_poc_pct >= 0
-    passes_bias = ps.daily_bias == "BULLISH"
-
-    return {
-        # ── Identity ──────────────────────────────────────────────────────
-        "symbol": symbol,
-        "timestamp": datetime.datetime.now(),
-        "scan_timestamp": datetime.datetime.now().isoformat(timespec="seconds"),
-        "is_etf": True,
-        "etf_category": ctx.info.category,
-        "etf_underlying": ctx.info.underlying,
-        # ── Price ─────────────────────────────────────────────────────────
-        "last_price": round(ctx.spot, 2),
-        "bb_upper": None,
-        "bb_mid": None,
-        "wr_50": round(ps.wr_value, 1) if ps.wr_value is not None else None,
-        "riding_upper_band": riding_upper,
-        "wr_above_minus20": ps.wr_in_momentum,
-        "bars_since_wr_cross_minus50": None,
-        "position_state": _STATE_MAP.get(ps.position_state, "BELOW_MID"),
-        "daily_bias": ps.daily_bias,
-        "vol_state": ps.vol_state,
-        # ── ETF-specific ──────────────────────────────────────────────────
-        "poc": round(vp.poc, 2) if vp else None,
-        "vah": round(vp.vah, 2) if vp else None,
-        "val": round(vp.val, 2) if vp else None,
-        "spot_vs_poc_pct": vp.spot_vs_poc_pct if vp else None,
-        "vsr": evl.vsr if evl else None,
-        "vol_surge_label": evl.surge_label if evl else None,
-        "vol_trend": evl.trend if evl else None,
-        "vwap": round(etr.vwap, 2) if etr and etr.vwap else None,
-        "above_vwap": etr.above_vwap if etr else None,
-        "pct_from_vwap": etr.pct_from_vwap if etr else None,
-        "underlying_bias": etr.underlying_bias if etr else "UNAVAILABLE",
-        "underlying_pct": etr.underlying_pct if etr else None,
-        # ── F&O fields — None for ETFs (keeps table columns consistent) ───
-        "net_gex": None,
-        "gex_regime": "ETF",
-        "hvl": None,
-        "put_support": None,
-        "call_resistance": None,
-        "pct_to_support": None,
-        "pct_to_resistance": None,
-        "max_pain": None,
-        "pct_to_max_pain": None,
-        "pcr_oi": None,
-        "dte": None,
-        "expiry_risk": None,
-        # ── Viability (same 100-pt scale as F&O) ──────────────────────────
-        "viability_score": ctx.viability.score,
-        "viability_label": ctx.viability.label,
-        "size_suggestion": ctx.viability.sizing,
-        "short_reason": (
-            " · ".join(ctx.viability.reasons[:2]) if ctx.viability.reasons else ""
-        ),
-        # ── Filter booleans ───────────────────────────────────────────────
-        "passes_momentum": passes_momentum,
-        "passes_structure": passes_structure,
-        "passes_regime": True,  # no regime concept for ETFs
-        "passes_expiry": True,  # no expiry for ETFs
-        "passes_daily_bias": passes_bias,
-        "all_filters_pass": passes_momentum and passes_structure and passes_bias,
-    }
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# F&O PATH (unchanged from v5.2)
-# ══════════════════════════════════════════════════════════════════════════════
-
-
 def _analyze_symbol_inner(symbol: str) -> Optional[dict]:
     time.sleep(_INTER_SYMBOL_DELAY)
 
+    # ── Price data ────────────────────────────────────────────────────────
     price_df, p_msg = get_price_4h(symbol, bars=120)
     if price_df is None or price_df.empty:
         return None
@@ -217,6 +101,7 @@ def _analyze_symbol_inner(symbol: str) -> Optional[dict]:
     last = price_df.iloc[-1]
     spot = float(last["Close"])
 
+    # ── Options chain ─────────────────────────────────────────────────────
     lot_size = NSE_LOT_SIZES.get(symbol, 75)
     options_df, _ = download_options(symbol, max_expiries=3)
 
@@ -225,6 +110,7 @@ def _analyze_symbol_inner(symbol: str) -> Optional[dict]:
         if opt_spot and opt_spot > 0:
             spot = opt_spot
 
+    # ── Options analytics ─────────────────────────────────────────────────
     if options_df is not None and not options_df.empty:
         ctx = analyze(
             options_df, spot=spot, lot_size=lot_size, price_signals=ps, room_thresh=5.0
@@ -234,6 +120,7 @@ def _analyze_symbol_inner(symbol: str) -> Optional[dict]:
         ctx = None
         has_opts = False
 
+    # ── Extract price-side fields ─────────────────────────────────────────
     bb_upper = (
         float(last.get("BB_Upper", np.nan)) if "BB_Upper" in price_df.columns else None
     )
@@ -246,8 +133,16 @@ def _analyze_symbol_inner(symbol: str) -> Optional[dict]:
         ps.wr_bars_since_cross50 if ps.wr_bars_since_cross50 < 99 else float("nan")
     )
 
-    position_state = _STATE_MAP.get(ps.position_state, "BELOW_MID")
+    _state_map = {
+        "RIDING_UPPER": "RIDING_UPPER_BAND",
+        "FIRST_DIP": "FIRST_DIP",
+        "MID_BAND_BROKEN": "MID_BAND_BROKEN",
+        "CONSOLIDATING": "BELOW_MID",
+        "UNKNOWN": "BELOW_MID",
+    }
+    position_state = _state_map.get(ps.position_state, "BELOW_MID")
 
+    # ── Options-derived fields ────────────────────────────────────────────
     if has_opts and ctx:
         put_support = ctx.walls.support
         call_resistance = ctx.walls.resistance
@@ -257,11 +152,14 @@ def _analyze_symbol_inner(symbol: str) -> Optional[dict]:
         hvl = ctx.gex.hvl
         dte = ctx.expiry.days_remaining
         pin_risk = ctx.expiry.pin_risk
+
         pct_to_support = ctx.walls.support_pct
         pct_to_resistance = ctx.walls.resistance_pct
         pct_to_max_pain = ctx.expiry.spot_vs_maxpain
+
         gex_regime_raw = ctx.gex.regime
 
+        # FIX-REGIME
         if gex_regime_raw == "Negative":
             gex_regime = "TREND_FRIENDLY"
         elif (
@@ -273,6 +171,7 @@ def _analyze_symbol_inner(symbol: str) -> Optional[dict]:
         else:
             gex_regime = "PINNING"
 
+        # FIX-8
         near_mp = (
             max_pain is not None
             and spot > 0
@@ -280,6 +179,7 @@ def _analyze_symbol_inner(symbol: str) -> Optional[dict]:
             and dte <= 4
         )
 
+        # FIX-DTE0
         if dte <= 0:
             expiry_risk = "HIGH"
         elif pin_risk == "HIGH" or dte <= 2:
@@ -297,13 +197,16 @@ def _analyze_symbol_inner(symbol: str) -> Optional[dict]:
         expiry_risk = None
         near_mp = False
 
+    # ── Filter booleans ───────────────────────────────────────────────────
     passes_momentum = riding_upper and wr_above_m20
+
     passes_structure = (
         pct_to_resistance is not None
         and pct_to_resistance >= 5.0
         and pct_to_support is not None
         and -8.0 <= pct_to_support <= -2.0
     )
+
     passes_regime = gex_regime == "TREND_FRIENDLY"
     passes_expiry = dte is not None and dte >= 5
     passes_bias = ps.daily_bias == "BULLISH"
@@ -318,6 +221,7 @@ def _analyze_symbol_inner(symbol: str) -> Optional[dict]:
         and passes_pin
     )
 
+    # ── Viability score ───────────────────────────────────────────────────
     if has_opts and ctx:
         score = ctx.viability.score
         label = ctx.viability.label
@@ -348,25 +252,75 @@ def _analyze_symbol_inner(symbol: str) -> Optional[dict]:
         expiry_risk,
     )
 
+    # ── Phase 1: Setup Classification ─────────────────────────────────────
+    setup_type_val = SetupType.NEUTRAL
+    setup_detail = ""
+    setup_color = SETUP_COLORS[SetupType.NEUTRAL]
+
+    try:
+        # Build OptionsSignalState from ctx Phase 1 fields
+        if has_opts and ctx:
+            opts_state = OptionsSignalState(
+                gex_regime=ctx.gex.regime,
+                gex_rising=ctx.gex_rising,
+                pcr=ctx.pcr,
+                pcr_trending=ctx.pcr_trending,
+                iv_skew=ctx.iv_skew,
+                delta_bias=ctx.delta_bias,
+                call_oi_wall_pct=ctx.call_oi_wall_pct,
+                pct_to_resistance=pct_to_resistance,
+                pcr_oi=ctx.walls.pcr_oi,
+            )
+        else:
+            opts_state = OptionsSignalState()
+
+        mom_state = MomentumState(
+            bb_position=ps.bb_position,
+            position_state=ps.position_state,
+            vol_state=ps.vol_state,
+            wr_phase=ps.wr_phase,
+            wr_value=ps.wr_value,
+            wr_in_momentum=ps.wr_in_momentum,
+        )
+
+        # Filing variance — caller may enrich row with FilingVariance object later;
+        # here we pass None if not pre-loaded (filings run separately from scanner)
+        fv = None  # populated by FilingsWorker post-scan if used
+
+        setup_type_val, setup_detail = classify_setup_v3(
+            viability_score=score,
+            filing_variance=fv.variance if fv else None,
+            filing_direction=fv.badge_color if fv else "NONE",
+            filing_conviction=fv.conviction if fv else 0,
+            filing_category=fv.category.value if fv else "OTHER",
+            opts=opts_state,
+            mom=mom_state,
+        )
+        setup_color = SETUP_COLORS[setup_type_val]
+
+    except Exception as exc:
+        logger.debug("[scanner] setup_classify %s: %s", symbol, exc)
+
     return {
         "symbol": symbol,
         "timestamp": datetime.datetime.now(),
         "scan_timestamp": datetime.datetime.now().isoformat(timespec="seconds"),
-        "is_etf": False,
         "last_price": round(spot, 2),
-        "bb_upper": round(bb_upper, 2) if bb_upper and not np.isnan(bb_upper) else None,
-        "bb_mid": round(bb_mid, 2) if bb_mid and not np.isnan(bb_mid) else None,
-        "wr_50": round(wr_50, 1) if wr_50 is not None else None,
+        "bb_upper": (
+            round(bb_upper, 2) if bb_upper and not np.isnan(bb_upper) else None
+        ),
+        "bb_mid": (round(bb_mid, 2) if bb_mid and not np.isnan(bb_mid) else None),
+        "wr_50": (round(wr_50, 1) if wr_50 is not None else None),
         "riding_upper_band": riding_upper,
         "wr_above_minus20": wr_above_m20,
         "bars_since_wr_cross_minus50": bars_since_m50,
         "position_state": position_state,
         "daily_bias": ps.daily_bias,
         "vol_state": ps.vol_state,
-        "net_gex": round(net_gex, 0) if net_gex is not None else None,
+        "net_gex": (round(net_gex, 0) if net_gex is not None else None),
         "gex_regime": gex_regime,
-        "hvl": round(hvl, 0) if hvl is not None else None,
-        "put_support": round(put_support, 0) if put_support is not None else None,
+        "hvl": (round(hvl, 0) if hvl is not None else None),
+        "put_support": (round(put_support, 0) if put_support is not None else None),
         "call_resistance": (
             round(call_resistance, 0) if call_resistance is not None else None
         ),
@@ -376,12 +330,12 @@ def _analyze_symbol_inner(symbol: str) -> Optional[dict]:
         "pct_to_resistance": (
             round(pct_to_resistance, 2) if pct_to_resistance is not None else None
         ),
-        "max_pain": round(max_pain, 0) if max_pain is not None else None,
+        "max_pain": (round(max_pain, 0) if max_pain is not None else None),
         "pct_to_max_pain": (
             round(pct_to_max_pain, 2) if pct_to_max_pain is not None else None
         ),
-        "pcr_oi": round(pcr_oi, 3) if pcr_oi is not None else None,
-        "dte": dte if dte is not None and dte < 99 else None,
+        "pcr_oi": (round(pcr_oi, 3) if pcr_oi is not None else None),
+        "dte": (dte if dte is not None and dte < 99 else None),
         "expiry_risk": expiry_risk,
         "viability_score": score,
         "viability_label": label,
@@ -393,6 +347,20 @@ def _analyze_symbol_inner(symbol: str) -> Optional[dict]:
         "passes_expiry": passes_expiry,
         "passes_daily_bias": passes_bias,
         "all_filters_pass": all_filters_pass,
+        # Phase 1 additions
+        "setup_type": setup_type_val.value,
+        "setup_detail": setup_detail,
+        "setup_color": setup_color,
+        "setup_priority": SETUP_PRIORITY[setup_type_val],
+        "adv_cr": round(ps.adv_cr, 2),
+        "gex_regime_raw": gex_regime_raw if (has_opts and ctx) else "Neutral",
+        "gex_rising": ctx.gex_rising if (has_opts and ctx) else False,
+        "pcr_trending": ctx.pcr_trending if (has_opts and ctx) else "FLAT",
+        "iv_skew": ctx.iv_skew if (has_opts and ctx) else "FLAT",
+        "delta_bias": ctx.delta_bias if (has_opts and ctx) else "NEUTRAL",
+        "call_oi_wall_pct": ctx.call_oi_wall_pct if (has_opts and ctx) else 0.0,
+        "bb_position": ps.bb_position,
+        "wr_phase": ps.wr_phase,
     }
 
 
@@ -414,7 +382,10 @@ def _short_reason(
         if ps.position_state == "FIRST_DIP":
             return "FIRST_DIP — manage existing position, no new entries"
         wr_str = f"W%R {ps.wr_value:.0f}" if ps.wr_value is not None else "W%R ?"
-        return f"Momentum gate closed ({wr_str}, {'upper band' if ps.wr_in_momentum else 'not in zone'})"
+        return (
+            f"Momentum gate closed ({wr_str}, "
+            f"{'upper band' if ps.wr_in_momentum else 'not in zone'})"
+        )
     if not p_struct:
         r = f"{pct_res:.1f}%" if pct_res is not None else "?"
         return f"Structural room {r} — below 5% minimum"
@@ -439,12 +410,6 @@ def scan_universe(
     progress_cb=None,
     max_workers: int = 3,
 ) -> list[dict]:
-    """
-    Run analyze_symbol() over all symbols.
-    _INTER_SYMBOL_DELAY is already applied inside analyze_symbol(), so
-    parallel workers naturally spread their NSE requests over time.
-    Returns list sorted by viability_score descending.
-    """
     results = []
     total = len(symbols)
     done = 0
@@ -474,5 +439,6 @@ def scan_universe(
                 continue
             results.append(row)
 
-    results.sort(key=lambda r: r["viability_score"], reverse=True)
+    # Sort: TRAP first (setup_priority=1), then by priority asc, then score desc
+    results.sort(key=lambda r: (r.get("setup_priority", 8), -r["viability_score"]))
     return results

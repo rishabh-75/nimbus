@@ -46,6 +46,7 @@ class DataManager(QObject):
     error_occurred = pyqtSignal(str, str)
     freshness_changed = pyqtSignal(str)
     universe_ready = pyqtSignal(list)
+    filing_ready = pyqtSignal(str, object)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -72,9 +73,41 @@ class DataManager(QObject):
         self._freshness_timer.setInterval(30_000)
         self._freshness_timer.timeout.connect(self._check_freshness)
         self._freshness_timer.start()
+        self._prewarm_nifty500()
+        self._filing_worker = None
         logger.info("DataManager initialised")
 
     # ── PUBLIC API ─────────────────────────────────────────────────────────────
+    def _prewarm_nifty500(self):
+        """
+        Pre-populate the NIFTY500 cache in filings_v2.py on DataManager startup.
+        Runs in a daemon thread so it doesn't block the UI event loop.
+        Without this, the first FilingsWorker run would block on NSE I/O
+        for ~2s before the actual enrichment loop even starts.
+        """
+        import threading
+
+        def _warm():
+            try:
+                from modules.filings_v2 import get_nifty500
+
+                syms = get_nifty500()
+                logger.info("NIFTY500 pre-warm: %d symbols cached", len(syms))
+            except Exception as exc:
+                logger.warning("NIFTY500 pre-warm failed (non-fatal): %s", exc)
+
+        threading.Thread(target=_warm, daemon=True, name="nifty500-prewarm").start()
+
+    def _start_filing_worker(self, symbol: str, adv_cr: float = 0.0):
+        from ui.workers import SingleFilingWorker
+
+        if self._filing_worker and self._filing_worker.isRunning():
+            self._filing_worker.quit()
+        self._filing_worker = SingleFilingWorker(symbol=symbol, adv_cr=adv_cr)
+        self._filing_worker.filing_ready.connect(
+            lambda sym, fv: self.filing_ready.emit(sym, fv)
+        )
+        self._filing_worker.start()
 
     def refresh(self, symbol: str, fetch_options: bool = True):
         symbol = symbol.strip().upper()
@@ -205,20 +238,8 @@ class DataManager(QObject):
 
         symbol = self._active_symbol
 
-        # ── ETF PATH — no options chain needed ───────────────────────────────
-        if symbol in NSE_ETF_SYMBOLS:
-            if self._price_df is not None and not self._price_df.empty:
-                try:
-                    ctx = analyze_etf(symbol, self._price_df, self._ps)
-                    if ctx is not None:
-                        self._ctx = ctx
-                        self.context_updated.emit(symbol, ctx)
-                except Exception as exc:
-                    logger.error("ETF analytics error %s: %s", symbol, exc)
-            return  # skip F&O path entirely
         spot = self._spot
 
-        # ── CHANGE 2: ETF path ────────────────────────────────────────────────
         if symbol in NSE_ETF_SYMBOLS:
             try:
                 ctx = analyze_etf(
@@ -241,6 +262,10 @@ class DataManager(QObject):
                 self.context_updated.emit(symbol, ctx)
             except Exception as exc:
                 logger.error("ETF analytics error %s: %s", symbol, exc)
+
+            adv_cr = getattr(self._ps, "adv_cr", 0.0) if self._ps else 0.0
+            self._start_filing_worker(symbol, adv_cr=adv_cr)
+
             self._freshness = DataFreshnessState.LIVE
             self.freshness_changed.emit("LIVE")
             return
@@ -272,7 +297,8 @@ class DataManager(QObject):
             self.context_updated.emit(symbol, self._ctx)
         except Exception as exc:
             logger.error("Analytics error for %s: %s", symbol, exc)
-
+        adv_cr = getattr(self._ps, "adv_cr", 0.0) if self._ps else 0.0
+        self._start_filing_worker(symbol, adv_cr=adv_cr)
         self._freshness = DataFreshnessState.LIVE
         self.freshness_changed.emit("LIVE")
 

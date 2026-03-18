@@ -73,8 +73,11 @@ def _make_scroll_panel(widget: QWidget, height: int = 280) -> QScrollArea:
     sa = QScrollArea()
     sa.setWidgetResizable(True)
     sa.setFixedHeight(height)
-    sa.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+
+    # allow horizontal scroll when content is wider than viewport
+    sa.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
     sa.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+
     sa.setStyleSheet(
         "QScrollArea { border: none; background: transparent; }"
         "QScrollBar:vertical { background: #0D1117; width: 5px; border: none; }"
@@ -82,6 +85,7 @@ def _make_scroll_panel(widget: QWidget, height: int = 280) -> QScrollArea:
         "QScrollBar::handle:vertical:hover { background: #10B981; }"
         "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }"
     )
+
     sa.setWidget(widget)
 
     from PyQt6.QtWidgets import QSizePolicy
@@ -248,11 +252,16 @@ class DashboardTab(QWidget):
         pa.addLayout(wh)
 
         self._wf = {}
+        self._wf_titles = {}  # NEW: store heading labels so we can rename for ETFs
+
         for key in ("TREND & STATE", "GEX REGIME", "OI WALLS", "EXPIRY", "WILLIAMS %R"):
-            pa.addWidget(_h(key, MUTED, 6))
+            title_lbl = _h(key, MUTED, 6)
+            pa.addWidget(title_lbl)
             body = _t("", WHITE, 7)
             pa.addWidget(body)
+
             self._wf[key] = body
+            self._wf_titles[key] = title_lbl
 
         self._verdict = QLabel("")
         self._verdict.setFont(QFont(FONT_UI, 7))
@@ -430,7 +439,7 @@ class DashboardTab(QWidget):
             self._filing_badge.set_badge("NO FILING", "NEUTRAL")
             self._filing_detail_lbl.setText("No actionable filing in past 72h")
             self._filing_detail_lbl.setStyleSheet(f"color: {MUTED};")
-            self._conviction_lbl.setText("○○○○○○○○○○")
+            self._conviction_lbl.setText("-")
             self._filing_recency_lbl.setText("")
             self._filing_setup_lbl.setText("SETUP: —")
             self._filing_subject_lbl.setText("")
@@ -780,6 +789,19 @@ class DashboardTab(QWidget):
         ev = ctx.etf_volume
         et = ctx.etf_trend
         nav = ctx.etf_nav
+
+        # ── ETF-specific workflow headings ───────────────────────────────────
+        if hasattr(self, "_wf_titles"):
+            title_map = {
+                "TREND & STATE": "TREND & STATE",
+                "GEX REGIME": "VOLUME & VSR",
+                "OI WALLS": "VWAP & POC",
+                "EXPIRY": "UNDERLYING",
+                "WILLIAMS %R": "NAV & PREMIUM",
+            }
+            for old, new in title_map.items():
+                if old in self._wf_titles:
+                    self._wf_titles[old].setText(new.upper())
 
         # ── KPI overrides ─────────────────────────────────────────────────────
         if ev:

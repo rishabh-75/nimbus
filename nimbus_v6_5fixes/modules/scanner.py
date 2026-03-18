@@ -159,7 +159,6 @@ def _analyze_symbol_inner(symbol: str) -> Optional[dict]:
 
         gex_regime_raw = ctx.gex.regime
 
-        # FIX-REGIME
         if gex_regime_raw == "Negative":
             gex_regime = "TREND_FRIENDLY"
         elif (
@@ -171,7 +170,6 @@ def _analyze_symbol_inner(symbol: str) -> Optional[dict]:
         else:
             gex_regime = "PINNING"
 
-        # FIX-8
         near_mp = (
             max_pain is not None
             and spot > 0
@@ -179,7 +177,6 @@ def _analyze_symbol_inner(symbol: str) -> Optional[dict]:
             and dte <= 4
         )
 
-        # FIX-DTE0
         if dte <= 0:
             expiry_risk = "HIGH"
         elif pin_risk == "HIGH" or dte <= 2:
@@ -199,14 +196,12 @@ def _analyze_symbol_inner(symbol: str) -> Optional[dict]:
 
     # ── Filter booleans ───────────────────────────────────────────────────
     passes_momentum = riding_upper and wr_above_m20
-
     passes_structure = (
         pct_to_resistance is not None
         and pct_to_resistance >= 5.0
         and pct_to_support is not None
         and -8.0 <= pct_to_support <= -2.0
     )
-
     passes_regime = gex_regime == "TREND_FRIENDLY"
     passes_expiry = dte is not None and dte >= 5
     passes_bias = ps.daily_bias == "BULLISH"
@@ -227,13 +222,9 @@ def _analyze_symbol_inner(symbol: str) -> Optional[dict]:
         label = ctx.viability.label
         size = ctx.viability.sizing
     else:
-        _ctx_no_opts = analyze(
-            pd.DataFrame(),
-            spot=spot,
-            lot_size=lot_size,
-            price_signals=ps,
-            room_thresh=5.0,
-        )
+        from modules.analytics import analyze_price_only
+
+        _ctx_no_opts = analyze_price_only(spot=spot, price_signals=ps, room_thresh=5.0)
         score = _ctx_no_opts.viability.score
         label = _ctx_no_opts.viability.label
         size = _ctx_no_opts.viability.sizing
@@ -252,13 +243,81 @@ def _analyze_symbol_inner(symbol: str) -> Optional[dict]:
         expiry_risk,
     )
 
+    # ── ETF RS Score → viability adjustment ──────────────────────────────
+    # Only applied when the symbol is a known sector ETF in SECTOR_MAP.
+    # For regular F&O stocks this block is skipped entirely (sc stays None).
+    sc: Optional[dict] = None
+    try:
+        from modules.sector_map import SECTOR_MAP
+
+        _is_etf = any(
+            t.upper().replace(".NS", "") == symbol.upper().replace(".NS", "")
+            for t in SECTOR_MAP
+        )
+        if _is_etf:
+            from modules.sector_rotation import get_sector_context
+
+            sc = get_sector_context(symbol)  # zero extra network calls — uses cache
+            if sc:
+                adj = sc["adj_score"]
+                rot = sc["rotation"]
+                flags = sc["flags"]
+
+                # RS tier → base contribution
+                if adj > 5.0:
+                    rs_contrib = +10
+                elif adj > 2.0:
+                    rs_contrib = +5
+                elif adj > 0.0:
+                    rs_contrib = +2
+                elif adj > -2.0:
+                    rs_contrib = -5
+                else:
+                    rs_contrib = -10
+
+                # Quality flag penalties / boost
+                flag_penalty = 0
+                for f in flags:
+                    if "PREM+" in f:
+                        try:
+                            prem = float(f.replace("PREM+", "").replace("%", ""))
+                            flag_penalty += int(min(prem * 4, 15))  # 1.4%→5, 2.5%→10
+                        except Exception:
+                            flag_penalty += 5
+                    if "THIN-VOL" in f:
+                        flag_penalty += 8
+                    if "LOW-VOL" in f:
+                        flag_penalty += 3
+                    if "HIGH-VOL" in f:
+                        flag_penalty -= 3  # rising participation = good
+
+                etf_delta = rs_contrib - flag_penalty
+                score = max(0, min(100, score + etf_delta))
+
+                # Override short_reason when quality is the binding constraint
+                if flag_penalty > rs_contrib and score < 50:
+                    short_reason = (
+                        f"ETF quality: {rot} RS={sc['rs_score']:+.1f} "
+                        f"adj={adj:+.1f} | " + "  ".join(flags)
+                    )
+
+                # Recompute label + size after ETF delta
+                label, size = (
+                    ctx.viability.__class__.from_score(score)
+                    if hasattr(ctx, "viability")
+                    else (label, size)
+                )
+
+    except Exception as exc:
+        logger.debug("ETF RS enrichment %s: %s", symbol, exc)
+
     # ── Phase 1: Setup Classification ─────────────────────────────────────
+    # Uses the (possibly ETF-adjusted) score so setup labels stay consistent.
     setup_type_val = SetupType.NEUTRAL
     setup_detail = ""
     setup_color = SETUP_COLORS[SetupType.NEUTRAL]
 
     try:
-        # Build OptionsSignalState from ctx Phase 1 fields
         if has_opts and ctx:
             opts_state = OptionsSignalState(
                 gex_regime=ctx.gex.regime,
@@ -283,9 +342,7 @@ def _analyze_symbol_inner(symbol: str) -> Optional[dict]:
             wr_in_momentum=ps.wr_in_momentum,
         )
 
-        # Filing variance — caller may enrich row with FilingVariance object later;
-        # here we pass None if not pre-loaded (filings run separately from scanner)
-        fv = None  # populated by FilingsWorker post-scan if used
+        fv = None
 
         setup_type_val, setup_detail = classify_setup_v3(
             viability_score=score,
@@ -347,11 +404,12 @@ def _analyze_symbol_inner(symbol: str) -> Optional[dict]:
         "passes_expiry": passes_expiry,
         "passes_daily_bias": passes_bias,
         "all_filters_pass": all_filters_pass,
-        # Phase 1 additions
+        # Phase 1
         "setup_type": setup_type_val.value,
         "setup_detail": setup_detail,
         "setup_color": setup_color,
         "setup_priority": SETUP_PRIORITY[setup_type_val],
+        # Existing extended fields
         "adv_cr": round(ps.adv_cr, 2),
         "gex_regime_raw": gex_regime_raw if (has_opts and ctx) else "Neutral",
         "gex_rising": ctx.gex_rising if (has_opts and ctx) else False,
@@ -361,6 +419,11 @@ def _analyze_symbol_inner(symbol: str) -> Optional[dict]:
         "call_oi_wall_pct": ctx.call_oi_wall_pct if (has_opts and ctx) else 0.0,
         "bb_position": ps.bb_position,
         "wr_phase": ps.wr_phase,
+        "has_options": has_opts,
+        # ETF RS enrichment (None for regular F&O stocks)
+        "sector_rs": sc["adj_score"] if sc else None,
+        "sector_rot": sc["rotation"] if sc else None,
+        "sector_flags": sc["flags"] if sc else [],
     }
 
 

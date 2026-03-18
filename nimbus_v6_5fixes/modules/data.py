@@ -102,7 +102,7 @@ NSE_LOT_SIZES: dict[str, int] = {
     # ── Chemicals / Agri ───────────────────────────────────────────────────────
     "UPL": 1300,
     # ── New Age ────────────────────────────────────────────────────────────────
-    "ZOMATO": 4500,
+    "ETERNAL": 4500,
     # ── Conglomerate ───────────────────────────────────────────────────────────
     "ADANIENT": 625,
     "ADANIPORTS": 625,
@@ -149,6 +149,48 @@ def _make_nse_session() -> Tuple[requests.Session, dict]:
     )
     cookies = dict(resp.cookies)  # ← resp.cookies, NOT session.cookies
     return session, cookies
+
+
+def fetch_inav(symbol: str) -> Optional[float]:
+    """
+    Fetch live iNAV for an NSE ETF.
+
+    Endpoint: /api/etf  (returns all ETFs; filter by symbol)
+    Same session pattern as options chain — Firefox/82 UA,
+    allow_redirects=False, cookies from response not session.
+
+    Returns iNAV as float, or None on any failure.
+    """
+    try:
+        session, cookies = _make_nse_session()
+        resp = session.get(
+            "https://www.nseindia.com/api/etf",
+            headers=_NSE_HEADER,
+            cookies=cookies,
+            allow_redirects=False,
+            timeout=15,
+        )
+        _assert_json(resp)
+        data = resp.json()
+        rows = data if isinstance(data, list) else data.get("data", [])
+
+        sym_upper = symbol.strip().upper()
+        for row in rows:
+            if str(row.get("symbol", "")).upper() == sym_upper:
+                # NSE uses "iNavValue" in most responses;
+                # fallback to "indicativeNAV" / "inav" field variants
+                for key in ("iNavValue", "indicativeNAV", "inav", "iNAV", "nav"):
+                    val = row.get(key)
+                    if val not in (None, "-", ""):
+                        try:
+                            return float(str(val).replace(",", ""))
+                        except (ValueError, TypeError):
+                            continue
+        return None
+
+    except Exception as exc:
+        logging.warning("fetch_inav %s failed: %s", symbol, exc)
+        return None
 
 
 def _get_expiry_dates(
@@ -565,7 +607,7 @@ _NIFTY50_FALLBACK = [
     "UPL",
     "ULTRACEMCO",
     "WIPRO",
-    "ZOMATO",
+    "ETERNAL",
 ] + _FNO_INDICES
 
 
@@ -709,59 +751,115 @@ def get_universe() -> list[str]:
     return list(_NIFTY50_FALLBACK)
 
 
-# Predefined curated lists for the scanner universe selector
+# ── Predefined curated lists for the scanner universe selector ──────────────
+# NIFTY 100 = Nifty 50 + Nifty Next 50 (all 100 constituents) + F&O indices
 NIFTY100_SYMBOLS = [
-    "NIFTY",
-    "BANKNIFTY",
-    "RELIANCE",
-    "TCS",
-    "HDFCBANK",
-    "ICICIBANK",
-    "INFY",
-    "SBIN",
-    "AXISBANK",
-    "LT",
-    "BAJFINANCE",
-    "KOTAKBANK",
-    "HCLTECH",
-    "WIPRO",
-    "MARUTI",
-    "ONGC",
-    "NTPC",
-    "POWERGRID",
-    "SUNPHARMA",
-    "TATAMOTORS",
+    # ── Nifty 50 ─────────────────────────────────────────────────────────
     "ADANIENT",
     "ADANIPORTS",
-    "TATASTEEL",
-    "JSWSTEEL",
-    "HINDALCO",
-    "BHARTIARTL",
-    "TITAN",
+    "APOLLOHOSP",
     "ASIANPAINT",
+    "AXISBANK",
     "BAJAJ-AUTO",
-    "HEROMOTOCO",
-    "DRREDDY",
-    "CIPLA",
-    "DIVISLAB",
-    "NESTLEIND",
-    "ULTRACEMCO",
-    "GRASIM",
-    "TECHM",
-    "EICHERMOT",
-    "INDUSINDBK",
+    "BAJFINANCE",
     "BAJAJFINSV",
     "BPCL",
-    "ITC",
-    "COALINDIA",
-    "M&M",
-    "UPL",
-    "TATACONSUM",
-    "APOLLOHOSP",
-    "HDFCLIFE",
-    "SBILIFE",
+    "BHARTIARTL",
     "BRITANNIA",
-    "ZOMATO",
+    "CIPLA",
+    "COALINDIA",
+    "DIVISLAB",
+    "DRREDDY",
+    "EICHERMOT",
+    "GRASIM",
+    "HCLTECH",
+    "HDFCBANK",
+    "HDFCLIFE",
+    "HEROMOTOCO",
+    "HINDALCO",
+    "HINDUNILVR",
+    "ICICIBANK",
+    "ITC",
+    "INDUSINDBK",
+    "INFY",
+    "JSWSTEEL",
+    "KOTAKBANK",
+    "LT",
+    "M&M",
+    "MARUTI",
+    "NTPC",
+    "NESTLEIND",
+    "ONGC",
+    "POWERGRID",
+    "RELIANCE",
+    "SBILIFE",
+    "SBIN",
+    "SUNPHARMA",
+    "TCS",
+    "TATACONSUM",
+    "TATAMOTORS",
+    "TATASTEEL",
+    "TECHM",
+    "TITAN",
+    "UPL",
+    "ULTRACEMCO",
+    "WIPRO",
+    "ETERNAL",
+    # ── Nifty Next 50 ────────────────────────────────────────────────────
+    "ABB",
+    "AMBUJACEM",
+    "ATGL",
+    "BAJAJHFL",
+    "BANKBARODA",
+    "BHEL",
+    "BOSCHLTD",
+    "CANBK",
+    "CGPOWER",
+    "CHOLAFIN",
+    "COLPAL",
+    "DALBHARAT",
+    "DLF",
+    "GODREJCP",
+    "HAVELLS",
+    "HDFCAMC",
+    "HINDPETRO",
+    "ICICIGI",
+    "ICICIPRULI",
+    "INDHOTEL",
+    "IOC",
+    "IRFC",
+    "IRCTC",
+    "JIOFIN",
+    "JUBLFOOD",
+    "LICI",
+    "LUPIN",
+    "MARICO",
+    "MCDOWELL-N",
+    "MFSL",
+    "MOTHERSON",
+    "NAUKRI",
+    "NHPC",
+    "OBEROIRLTY",
+    "OFSS",
+    "PEL",
+    "PIIND",
+    "PIDILITIND",
+    "PNB",
+    "RECLTD",
+    "SAIL",
+    "SHREECEM",
+    "SIEMENS",
+    "SRF",
+    "TATACOMM",
+    "TIINDIA",
+    "TRENT",
+    "VEDL",
+    "VBL",
+    "ZYDUSLIFE",
+    # ── F&O indices (always included) ────────────────────────────────────
+    "NIFTY",
+    "BANKNIFTY",
     "FINNIFTY",
     "MIDCPNIFTY",
+    "NIFTYNXT50",
 ]

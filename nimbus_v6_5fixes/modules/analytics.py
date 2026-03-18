@@ -443,7 +443,7 @@ def _expiry_ctx(df: pd.DataFrame, spot: float, max_pain: Optional[float]) -> Exp
         key=lambda x: x[0],
     )
 
-    live = [(d, e) for d, e in dtes if d > 0]
+    live = [(d, e) for d, e in dtes if d >= 0]
     if not live:
         return ExpiryCtx()
 
@@ -867,3 +867,37 @@ def _viability(
         checklist=checklist,
         risk_notes=risk_notes,
     )
+
+
+def analyze_price_only(
+    spot: float,
+    price_signals: Optional[PriceSignals] = None,
+    room_thresh: float = 5.0,
+) -> OptionsContext:
+    """
+    Score a symbol that has no options chain.
+    Runs _viability() with all options fields at neutral defaults,
+    capped at 70 to reflect the information deficit.
+    """
+    ctx = OptionsContext()  # all defaults: Neutral GEX, no walls, DTE=99
+    if spot <= 0:
+        return ctx
+
+    # _viability() will score: Regime→0, Room→-20, Bias, Expiry(+12),
+    # PCR→+5 (pcr=1.0), Vol, WR, BB — price signals fully scored.
+    ctx.viability = _viability(ctx, price_signals, room_thresh)
+
+    # Cap at 70: the 30pt ceiling acknowledges missing GEX+OI wall data.
+    # A no-opts stock genuinely cannot be more than a PROCEED (58-77).
+    ctx.viability.score = min(ctx.viability.score, 70)
+
+    # Re-derive label and sizing from capped score
+    s = ctx.viability.score
+    if s >= 58:
+        ctx.viability.label, ctx.viability.sizing = "PROCEED", "HALF"
+    elif s >= 40:
+        ctx.viability.label, ctx.viability.sizing = "CAUTION", "HALF"
+    else:
+        ctx.viability.label, ctx.viability.sizing = "AVOID", "SKIP"
+
+    return ctx

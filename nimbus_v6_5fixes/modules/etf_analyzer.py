@@ -1,5 +1,5 @@
 """
-modules/etf_analyzer.py  v5.4
+modules/etf_analyzer.py  v5.5
 ──────────────────────────────
 Cash-only ETF analysis for NIMBUS.
 
@@ -14,8 +14,8 @@ Extended scoring — 100 pts across 8 components:
   AUM Liquidity       3 pts   (≥5000cr=3, ≥1000cr=2, else=1)
   Total             100 pts
 
-NAV source: NSE iNAV API — https://www.nseindia.com/api/etf?index=SYMBOL
-  Returns indicative intra-day NAV (iNavValue field).
+NAV source: NSE /api/etf — returns all ETFs, filtered locally.
+  Uses confirmed Firefox/82 session pattern from modules/data.py.
   Premium = (spot - iNAV) / iNAV × 100  (+ve = premium, -ve = discount)
 """
 
@@ -29,6 +29,7 @@ import numpy as np
 import pandas as pd
 
 logger = logging.getLogger(__name__)
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # ETF UNIVERSE
@@ -46,6 +47,7 @@ class ETFInfo:
 
 
 ETF_UNIVERSE: dict[str, ETFInfo] = {
+    # ── Broad Index ───────────────────────────────────────────────────────────
     "NIFTYBEES": ETFInfo(
         "NIFTYBEES",
         "Nippon India ETF Nifty BeES",
@@ -53,6 +55,38 @@ ETF_UNIVERSE: dict[str, ETFInfo] = {
         "NIFTY 50",
         "^NSEI",
         5975,
+    ),
+    "UTINIFTETF": ETFInfo(
+        "UTINIFTETF",
+        "UTI Nifty 50 ETF",
+        "equity_index",
+        "NIFTY 50",
+        "^NSEI",
+        69057,
+    ),
+    "SETFNIF50": ETFInfo(
+        "SETFNIF50",
+        "SBI ETF Nifty 50",
+        "equity_index",
+        "NIFTY 50",
+        "^NSEI",
+        48000,
+    ),
+    "LICNETFN50": ETFInfo(
+        "LICNETFN50",
+        "LIC MF ETF Nifty 50",
+        "equity_index",
+        "NIFTY 50",
+        "^NSEI",
+        8200,
+    ),
+    "NIFTYETF": ETFInfo(
+        "NIFTYETF",
+        "Mirae Asset Nifty 50 ETF",
+        "equity_index",
+        "NIFTY 50",
+        "^NSEI",
+        4765,
     ),
     "JUNIORBEES": ETFInfo(
         "JUNIORBEES",
@@ -78,6 +112,14 @@ ETF_UNIVERSE: dict[str, ETFInfo] = {
         "^NSEI",
         3000,
     ),
+    "MIDSELIETF": ETFInfo(
+        "MIDSELIETF",
+        "ICICI Pru Nifty Midcap Select ETF",
+        "equity_index",
+        "Nifty Midcap Select",
+        "^NSEI",
+        3200,
+    ),
     "HDFCSML250": ETFInfo(
         "HDFCSML250",
         "HDFC Nifty Smallcap 250 ETF",
@@ -95,8 +137,63 @@ ETF_UNIVERSE: dict[str, ETFInfo] = {
         19851,
     ),
     "ICICIB22": ETFInfo(
-        "ICICIB22", "Bharat 22 ETF", "equity_index", "Nifty Bharat 22", "^NSEI", 23374
+        "ICICIB22",
+        "Bharat 22 ETF",
+        "equity_index",
+        "Nifty Bharat 22",
+        "^NSEI",
+        23374,
     ),
+    # ── Factor / Smart Beta ───────────────────────────────────────────────────
+    "LOWVOLIETF": ETFInfo(
+        "LOWVOLIETF",
+        "ICICI Pru Nifty Low Vol 30 ETF",
+        "factor",
+        "Nifty100 Low Volatility 30",
+        "^NSEI",
+        2100,
+    ),
+    "QUAL30IETF": ETFInfo(
+        "QUAL30IETF",
+        "ICICI Pru Nifty Quality 30 ETF",
+        "factor",
+        "Nifty Quality 30",
+        "^NSEI",
+        1800,
+    ),
+    "ALPHAETF": ETFInfo(
+        "ALPHAETF",
+        "ICICI Pru Alpha Low Vol 30 ETF",
+        "factor",
+        "Nifty Alpha Low Vol 30",
+        "^NSEI",
+        1200,
+    ),
+    "MOM30IETF": ETFInfo(
+        "MOM30IETF",
+        "ICICI Pru Nifty200 Momentum 30 ETF",
+        "factor",
+        "Nifty 200 Momentum 30",
+        "^NSEI",
+        582,
+    ),
+    "EQUAL50IETF": ETFInfo(
+        "EQUAL50IETF",
+        "ICICI Pru Nifty50 Equal Weight ETF",
+        "factor",
+        "Nifty50 Equal Weight",
+        "^NSEI",
+        950,
+    ),
+    "NV20IETF": ETFInfo(
+        "NV20IETF",
+        "ICICI Pru Nifty50 Value 20 ETF",
+        "factor",
+        "Nifty50 Value 20",
+        "^NSEI",
+        800,
+    ),
+    # ── Sector ────────────────────────────────────────────────────────────────
     "BANKBEES": ETFInfo(
         "BANKBEES",
         "Nippon India ETF Nifty Bank BeES",
@@ -121,8 +218,21 @@ ETF_UNIVERSE: dict[str, ETFInfo] = {
         "^NSEBANK",
         1500,
     ),
+    "EBANKNIFTY": ETFInfo(
+        "EBANKNIFTY",
+        "Edelweiss Nifty Bank ETF",
+        "sector",
+        "Nifty Bank",
+        "^NSEBANK",
+        400,
+    ),
     "CPSEETF": ETFInfo(
-        "CPSEETF", "CPSE ETF", "sector", "Nifty CPSE", "CPSEETF.NS", 63037
+        "CPSEETF",
+        "CPSE ETF",
+        "sector",
+        "Nifty CPSE",
+        "CPSEETF.NS",
+        63037,
     ),
     "OILIETF": ETFInfo(
         "OILIETF",
@@ -133,7 +243,12 @@ ETF_UNIVERSE: dict[str, ETFInfo] = {
         2000,
     ),
     "ITBEES": ETFInfo(
-        "ITBEES", "Nippon India ETF Nifty IT", "sector", "NIFTY IT", "^CNXIT", 23481
+        "ITBEES",
+        "Nippon India ETF Nifty IT",
+        "sector",
+        "NIFTY IT",
+        "^CNXIT",
+        23481,
     ),
     "PHARMABEES": ETFInfo(
         "PHARMABEES",
@@ -159,6 +274,23 @@ ETF_UNIVERSE: dict[str, ETFInfo] = {
         "^CNXMETAL",
         1500,
     ),
+    "INFRABEES": ETFInfo(
+        "INFRABEES",
+        "Nippon India ETF Nifty Infrastructure",
+        "sector",
+        "Nifty Infrastructure",
+        "^NSEI",
+        900,
+    ),
+    "GROWWPSE": ETFInfo(
+        "GROWWPSE",
+        "Groww Nifty PSE ETF",
+        "sector",
+        "Nifty PSE Index TRI",
+        "^NSEI",
+        300,
+    ),
+    # ── Thematic ──────────────────────────────────────────────────────────────
     "MODEFENCE": ETFInfo(
         "MODEFENCE",
         "Motilal Oswal Nifty India Defence ETF",
@@ -167,6 +299,7 @@ ETF_UNIVERSE: dict[str, ETFInfo] = {
         "MODEFENCE.NS",
         3000,
     ),
+    # ── Commodity ─────────────────────────────────────────────────────────────
     "GOLDBEES": ETFInfo(
         "GOLDBEES",
         "Nippon India ETF Gold BeES",
@@ -184,8 +317,14 @@ ETF_UNIVERSE: dict[str, ETFInfo] = {
         28611,
     ),
     "TATSILV": ETFInfo(
-        "TATSILV", "Tata Silver ETF", "commodity", "Silver (MCX/XAGUSD)", "SI=F", 5000
+        "TATSILV",
+        "Tata Silver ETF",
+        "commodity",
+        "Silver (MCX/XAGUSD)",
+        "SI=F",
+        5000,
     ),
+    # ── International Equity ──────────────────────────────────────────────────
     "MON100": ETFInfo(
         "MON100",
         "Motilal Oswal NASDAQ 100 ETF",
@@ -228,6 +367,7 @@ ETF_UNIVERSE: dict[str, ETFInfo] = {
     ),
 }
 
+
 NSE_ETF_SYMBOLS: list[str] = sorted(ETF_UNIVERSE.keys())
 
 
@@ -265,11 +405,11 @@ class ETFTrend:
 
 @dataclass
 class ETFNav:
-    inav: Optional[float]  # indicative NAV from NSE
+    inav: Optional[float]
     spot: float
     premium_pct: float  # (spot - iNAV) / iNAV × 100; +ve = premium
     available: bool
-    label: str  # "DISCOUNT" | "AT PAR" | "PREMIUM" | "UNAVAILABLE"
+    label: str  # "DISCOUNT" | "MILD DISCOUNT" | "AT PAR" | "MILD PREMIUM" | "PREMIUM" | "UNAVAILABLE"
 
 
 @dataclass
@@ -287,7 +427,7 @@ class ETFViability:
     sizing: str
     reasons: list[str] = field(default_factory=list)
     checklist: list[ETFChecklistItem] = field(default_factory=list)
-    breakdown: dict[str, int] = field(default_factory=dict)  # component → pts
+    breakdown: dict[str, int] = field(default_factory=dict)
 
 
 @dataclass
@@ -314,42 +454,58 @@ class ETFContext:
 
 def fetch_nav_from_nse(symbol: str) -> Optional[float]:
     """
-    Fetch indicative NAV (iNavValue) from NSE ETF API.
-    Endpoint: https://www.nseindia.com/api/etf?index=SYMBOL
-    Returns iNAV as float, or None on failure.
+    Fetch iNavValue from NSE /api/etf.
+
+    Uses the confirmed Firefox/82 session pattern from modules/data.py.
+    NSE /api/etf returns ALL ETFs in a list — filtered locally by symbol.
+    Do NOT pass ?index= as a query param; NSE ignores it or returns HTML.
+
+    Session rules (must match data.py pattern exactly):
+      - Warm up via option-chain page with allow_redirects=False
+      - cookies = dict(resp.cookies) from the RESPONSE (not session.cookies)
+      - Every API call also uses allow_redirects=False
     """
     try:
-        import requests
+        from modules.data import _make_nse_session, _NSE_HEADER, _assert_json
 
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
-            "Accept": "application/json, text/plain, */*",
-            "Accept-Language": "en-US,en;q=0.9",
-            "Referer": "https://www.nseindia.com/",
-        }
-        session = requests.Session()
-        session.get("https://www.nseindia.com", timeout=6, headers=headers)
+        session, cookies = _make_nse_session()
         resp = session.get(
-            f"https://www.nseindia.com/api/etf?index={symbol}",
-            timeout=6,
-            headers=headers,
+            "https://www.nseindia.com/api/etf",  # no ?index= param
+            headers=_NSE_HEADER,
+            cookies=cookies,
+            allow_redirects=False,  # ← mandatory on every NSE API call
+            timeout=15,
         )
-        if resp.status_code != 200:
-            return None
+        _assert_json(resp)
         data = resp.json()
-        # NSE returns: {"iNavValue": "162.45", "lastPrice": "162.31", ...}
-        raw = data.get("iNavValue") or data.get("nav") or data.get("iNav")
-        if raw is not None:
-            return float(str(raw).replace(",", "").strip())
+        rows = data if isinstance(data, list) else data.get("data", [])
+
+        sym_upper = symbol.strip().upper()
+        for row in rows:
+            if str(row.get("symbol", "")).upper() == sym_upper:
+                for key in ("iNavValue", "indicativeNAV", "inav", "iNAV", "nav"):
+                    val = row.get(key)
+                    if val not in (None, "-", "", "NA", "0", 0):
+                        try:
+                            return float(str(val).replace(",", "").strip())
+                        except (ValueError, TypeError):
+                            continue
+        logger.warning("fetch_nav_from_nse: %s not found in /api/etf response", symbol)
+        return None
+
     except Exception as exc:
-        logger.debug("NAV fetch failed %s: %s", symbol, exc)
-    return None
+        logger.warning("fetch_nav_from_nse %s failed: %s", symbol, exc)
+        return None
 
 
 def compute_nav_signal(inav: Optional[float], spot: float) -> ETFNav:
     if inav is None or inav <= 0:
         return ETFNav(
-            inav=None, spot=spot, premium_pct=0.0, available=False, label="UNAVAILABLE"
+            inav=None,
+            spot=spot,
+            premium_pct=0.0,
+            available=False,
+            label="UNAVAILABLE",
         )
     premium_pct = round((spot - inav) / inav * 100, 3)
     if premium_pct <= -1.0:
@@ -363,7 +519,11 @@ def compute_nav_signal(inav: Optional[float], spot: float) -> ETFNav:
     else:
         label = "PREMIUM"
     return ETFNav(
-        inav=inav, spot=spot, premium_pct=premium_pct, available=True, label=label
+        inav=inav,
+        spot=spot,
+        premium_pct=premium_pct,
+        available=True,
+        label=label,
     )
 
 
@@ -402,12 +562,12 @@ def build_volume_profile(
     )
     poc_idx = int(np.argmax(vp))
     poc = float(centers[poc_idx])
-    va_idx, va_vol, ab, bl = [poc_idx], float(vp[poc_idx]), poc_idx + 1, poc_idx - 1
+    va_idx, va_vol = [poc_idx], float(vp[poc_idx])
+    ab, bl = poc_idx + 1, poc_idx - 1
     target = vp.sum() * 0.70
     while va_vol < target and (ab < bins or bl >= 0):
-        a, b = (float(vp[ab]) if ab < bins else 0.0), (
-            float(vp[bl]) if bl >= 0 else 0.0
-        )
+        a = float(vp[ab]) if ab < bins else 0.0
+        b = float(vp[bl]) if bl >= 0 else 0.0
         if a >= b and ab < bins:
             va_idx.append(ab)
             va_vol += a
@@ -507,18 +667,16 @@ def compute_etf_trend(df: pd.DataFrame, info: ETFInfo, lookback: int = 20) -> ET
                     ),
                     2,
                 )
-                last, s5, s20 = (
-                    cls.iloc[-1].item(),
-                    cls.tail(5).mean().item(),
-                    cls.mean().item(),
-                )
+                last = cls.iloc[-1].item()
+                s5 = cls.tail(5).mean().item()
+                s20 = cls.mean().item()
                 ub = (
                     "BULLISH"
                     if last > s5 > s20
                     else "BEARISH" if last < s5 < s20 else "NEUTRAL"
                 )
     except Exception as e:
-        logger.debug("Proxy failed %s: %s", info.symbol, e)
+        logger.debug("Proxy fetch failed %s: %s", info.symbol, e)
     return ETFTrend(
         vwap=round(vwap, 4),
         above_vwap=above_vwap,
@@ -534,28 +692,28 @@ def compute_etf_trend(df: pd.DataFrame, info: ETFInfo, lookback: int = 20) -> ET
 
 
 def score_etf(
-    bb_state,
-    wr_in_momentum,
-    wr_value,
-    etf_volume,
-    vp,
-    etf_trend,
-    etf_nav,
-    info,
-    spot,
-    daily_bias,
+    bb_state: str,
+    wr_in_momentum: bool,
+    wr_value: float,
+    etf_volume: Optional[ETFVolume],
+    vp: Optional[VolumeProfile],
+    etf_trend: Optional[ETFTrend],
+    etf_nav: Optional[ETFNav],
+    info: ETFInfo,
+    spot: float,
+    daily_bias: str,
 ) -> ETFViability:
     score = 0
-    reasons = []
-    breakdown = {}
-    checklist = []
+    reasons: list[str] = []
+    breakdown: dict[str, int] = {}
+    checklist: list[ETFChecklistItem] = []
 
-    def ck(status, item, detail, impl=""):
+    def ck(status: str, item: str, detail: str, impl: str = "") -> None:
         checklist.append(
             ETFChecklistItem(status=status, item=item, detail=detail, implication=impl)
         )
 
-    # 1. BB State (25 pts) ──────────────────────────────────────────────────
+    # ── 1. BB State (25 pts) ──────────────────────────────────────────────────
     if bb_state == "RIDING_UPPER":
         pts = 25
         ck(
@@ -584,13 +742,13 @@ def score_etf(
     breakdown["BB State"] = pts
     reasons.append(f"BB {bb_state} ({pts}/25)")
 
-    # 2. W%R (15 pts proportional) ─────────────────────────────────────────
+    # ── 2. W%R (15 pts proportional) ─────────────────────────────────────────
     if wr_in_momentum:
         pts = max(0, min(15, int(15 * (80 + wr_value) / 80)))
         ck(
             "PASS",
             f"W%R {wr_value:.0f} in zone",
-            f"W%R(50) above -20 threshold",
+            "W%R(50) above -20 threshold",
             f"Momentum confirmed — {pts}/15 pts",
         )
     else:
@@ -605,7 +763,7 @@ def score_etf(
     breakdown["W%R"] = pts
     reasons.append(f"W%R {wr_value:.0f} ({pts}/15)")
 
-    # 3. Volume Surge (15 pts) ──────────────────────────────────────────────
+    # ── 3. Volume Surge (15 pts) ──────────────────────────────────────────────
     if etf_volume:
         base = {"SURGE": 15, "ELEVATED": 10, "NORMAL": 6, "DRY": 0}.get(
             etf_volume.surge_label, 0
@@ -623,10 +781,12 @@ def score_etf(
     score += pts
     breakdown["Volume Surge"] = pts
     reasons.append(
-        f"VSR {etf_volume.vsr:.1f}x {etf_volume.surge_label if etf_volume else '?'} ({pts}/15)"
+        f"VSR {etf_volume.vsr:.1f}x {etf_volume.surge_label} ({pts}/15)"
+        if etf_volume
+        else "VSR N/A (0/15)"
     )
 
-    # 4. Above POC (12 pts proportional) ───────────────────────────────────
+    # ── 4. Above POC (12 pts proportional) ───────────────────────────────────
     if vp:
         poc_pct = vp.spot_vs_poc_pct
         pts = min(12, int(12 * poc_pct / 3.0)) if poc_pct >= 0 else 0
@@ -646,10 +806,10 @@ def score_etf(
     score += pts
     breakdown["Above POC"] = pts
     reasons.append(
-        f"POC {vp.spot_vs_poc_pct:+.1f}% ({pts}/12)" if vp else f"POC N/A (0/12)"
+        f"POC {vp.spot_vs_poc_pct:+.1f}% ({pts}/12)" if vp else "POC N/A (0/12)"
     )
 
-    # 5. Above VWAP (10 pts proportional) ──────────────────────────────────
+    # ── 5. Above VWAP (10 pts proportional) ──────────────────────────────────
     if etf_trend and etf_trend.vwap > 0:
         vwap_pct = etf_trend.pct_from_vwap
         pts = min(10, int(10 * vwap_pct / 2.0)) if vwap_pct >= 0 else 0
@@ -674,7 +834,7 @@ def score_etf(
         else "VWAP N/A (0/10)"
     )
 
-    # 6. NAV Premium/Discount (15 pts) ─────────────────────────────────────
+    # ── 6. NAV Premium/Discount (15 pts) ─────────────────────────────────────
     if etf_nav and etf_nav.available:
         p = etf_nav.premium_pct
         if p <= -1.0:
@@ -698,14 +858,14 @@ def score_etf(
             ),
         )
     else:
-        pts = 7  # neutral when unavailable
+        pts = 7  # neutral when unavailable — neither bonus nor penalty
         ck("INFO", "NAV unavailable", "NSE iNAV not fetched", "Using neutral 7/15")
     score += pts
     breakdown["NAV Signal"] = pts
     nav_label = etf_nav.label if etf_nav and etf_nav.available else "N/A"
     reasons.append(f"NAV {nav_label} ({pts}/15)")
 
-    # 7. Underlying trend (5 pts) ──────────────────────────────────────────
+    # ── 7. Underlying trend (5 pts) ───────────────────────────────────────────
     if etf_trend:
         bias = etf_trend.underlying_bias
         pts = {"BULLISH": 5, "NEUTRAL": 2, "BEARISH": 0, "UNAVAILABLE": 2}.get(bias, 2)
@@ -732,12 +892,12 @@ def score_etf(
         f"Underlying {etf_trend.underlying_bias if etf_trend else '?'} ({pts}/5)"
     )
 
-    # 8. AUM Liquidity (3 pts) ─────────────────────────────────────────────
+    # ── 8. AUM Liquidity (3 pts) ──────────────────────────────────────────────
     aum = info.aum_cr
     pts = 3 if aum >= 5000 else (2 if aum >= 1000 else 1)
     ck(
         "PASS" if pts >= 2 else "WARN",
-        f"AUM ₹{aum:,.0f}cr — {'HIGH' if pts==3 else 'MED' if pts==2 else 'LOW'} liquidity",
+        f"AUM ₹{aum:,.0f}cr — {'HIGH' if pts == 3 else 'MED' if pts == 2 else 'LOW'} liquidity",
         (
             "Tight bid-ask spread, easy exit"
             if pts >= 2
@@ -751,21 +911,40 @@ def score_etf(
 
     score = max(0, min(100, score))
 
-    # ── Sizing + Label ─────────────────────────────────────────────────────
-    hard_fail = bb_state not in ("RIDING_UPPER", "FIRST_DIP") or not wr_in_momentum
-    if hard_fail or score < 40:
-        label = "AVOID"
-        sizing = "SKIP"
-    elif score >= 72 and daily_bias == "BULLISH":
-        label = "STRONG"
-        sizing = "FULL"
-    elif score >= 55:
-        label = "MODERATE"
-        sizing = "HALF"
+    if daily_bias == "BULLISH":
+        ck(
+            "PASS",
+            "Daily Bias: BULLISH",
+            f"Price above 20d MA",
+            "Trend aligned — FULL sizing unlocked",
+        )
+    elif daily_bias == "BEARISH":
+        ck(
+            "FAIL",
+            "Daily Bias: BEARISH",
+            f"Price below 20d MA",
+            "Hard override — all sizing forced to SKIP",
+        )
     else:
-        label = "WEAK"
-        sizing = "SKIP"
+        ck(
+            "WARN",
+            "Daily Bias: NEUTRAL",
+            f"Price near 20d MA",
+            "No full sizing until bias resolves",
+        )
 
+    # ── Sizing + Label ────────────────────────────────────────────────────────
+    hard_fail = (bb_state not in ("RIDING_UPPER", "FIRST_DIP")) or (not wr_in_momentum)
+    if hard_fail or score < 40:
+        label, sizing = "AVOID", "SKIP"
+    elif score >= 72 and daily_bias == "BULLISH":
+        label, sizing = "STRONG", "FULL"
+    elif score >= 55:
+        label, sizing = "MODERATE", "HALF"
+    else:
+        label, sizing = "WEAK", "SKIP"
+
+    # Hard overrides
     if etf_trend and etf_trend.underlying_bias == "BEARISH" and sizing == "FULL":
         sizing = "HALF"
         reasons.append("Underlying BEARISH — size capped HALF")
@@ -775,11 +954,11 @@ def score_etf(
         and etf_nav.premium_pct >= 1.5
         and sizing != "SKIP"
     ):
-        sizing = "HALF" if sizing == "FULL" else sizing
+        if sizing == "FULL":
+            sizing = "HALF"
         reasons.append(f"NAV premium {etf_nav.premium_pct:+.1f}% — size capped HALF")
     if daily_bias == "BEARISH" and sizing != "SKIP":
-        sizing = "SKIP"
-        label = "AVOID"
+        sizing, label = "SKIP", "AVOID"
         reasons.append("Daily bias BEARISH — no longs")
 
     return ETFViability(
@@ -798,10 +977,14 @@ def score_etf(
 
 
 def analyze_etf(
-    symbol: str, price_df: pd.DataFrame, price_signals, fetch_nav: bool = True
+    symbol: str,
+    price_df: pd.DataFrame,
+    price_signals,
+    fetch_nav: bool = True,
 ) -> Optional[ETFContext]:
     if price_df is None or price_df.empty:
         return None
+
     info = ETF_UNIVERSE.get(symbol) or ETFInfo(
         symbol=symbol,
         name=symbol,
@@ -809,10 +992,12 @@ def analyze_etf(
         underlying="Unknown",
         proxy_ticker=f"{symbol}.NS",
     )
+
     spot = float(price_df["Close"].iloc[-1])
     vp = build_volume_profile(price_df, bins=50, lookback=60)
     etf_volume = compute_etf_volume(price_df, avg_window=20)
     etf_trend = compute_etf_trend(price_df, info, lookback=20)
+
     inav = fetch_nav_from_nse(symbol) if fetch_nav else None
     etf_nav = compute_nav_signal(inav, spot)
 
@@ -833,6 +1018,7 @@ def analyze_etf(
         spot,
         daily_bias,
     )
+
     return ETFContext(
         symbol=symbol,
         info=info,

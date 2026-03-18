@@ -1,66 +1,57 @@
 """
 modules/sector_map.py
 ─────────────────────
-Sector-to-index mapping for relative strength computation.
+Sector ticker registry for NIMBUS Market Context tab.
+
+Tickers:
+  ^CNX* / ^NSE*  — NSE index tickers (yfinance confirmed)
+  *.NS           — NSE ETF tickers (yfinance confirmed)
+
+Nifty 500 benchmark: MONIFTY500.NS (MO ETF) → fallback ^NSEI
 """
 
-SECTOR_INDEX = {
-    # Financials / Banking
-    "HDFCBANK": "^NSEBANK", "ICICIBANK": "^NSEBANK",
-    "SBIN": "^NSEBANK", "KOTAKBANK": "^NSEBANK",
-    "AXISBANK": "^NSEBANK", "INDUSINDBK": "^NSEBANK",
-    "BAJFINANCE": "^NSEBANK", "BAJAJFINSV": "^NSEBANK",
+from __future__ import annotations
 
-    # IT
-    "TCS": "NIFTYIT.NS", "INFY": "NIFTYIT.NS",
-    "WIPRO": "NIFTYIT.NS", "HCLTECH": "NIFTYIT.NS",
-    "TECHM": "NIFTYIT.NS",
+# ── Market benchmark ──────────────────────────────────────────────────────────
+MARKET_TICKER = "MONIFTY500.NS"  # Motilal Oswal Nifty 500 ETF
+MARKET_FALLBACK = "^NSEI"  # Nifty 50 fallback
 
-    # Metals / Mining
-    "COALINDIA": "^CNXMETAL", "HINDALCO": "^CNXMETAL",
-    "JSWSTEEL": "^CNXMETAL", "TATASTEEL": "^CNXMETAL",
-    "VEDL": "^CNXMETAL", "NMDC": "^CNXMETAL",
-
-    # Defense / PSE
-    "BEL": "^CNXPSE", "HAL": "^CNXPSE", "BHEL": "^CNXPSE",
-    "RVNL": "^CNXPSE", "IRFC": "^CNXPSE", "RECLTD": "^CNXPSE",
-    "PFC": "^CNXPSE",
-
-    # Pharma
-    "SUNPHARMA": "^CNXPHARMA", "DRREDDY": "^CNXPHARMA",
-    "CIPLA": "^CNXPHARMA", "DIVISLAB": "^CNXPHARMA",
-
+# ── Sector map: yfinance_ticker → (Display Name, category) ───────────────────
+# Category is used for future grouping/colour overrides.
+# Ordered by logical grouping — sorted by RS at runtime.
+SECTOR_MAP: dict[str, tuple[str, str]] = {
+    # Financials
+    "^NSEBANK": ("Nifty Bank", "financials"),
+    "^CNXPSUBANK": ("PSU Bank", "financials"),
+    "PVTBANIETF.NS": ("Private Bank", "financials"),
+    # Technology
+    "^CNXIT": ("IT", "technology"),
+    # Healthcare
+    "^CNXPHARMA": ("Pharma", "healthcare"),
+    # Materials
+    "^CNXMETAL": ("Metal", "materials"),
+    # Consumer
+    "^CNXFMCG": ("FMCG", "consumer"),
+    "CONSUMBEES.NS": ("Consumption", "consumer"),
     # Auto
-    "MARUTI": "^CNXAUTO", "TATAMOTORS": "^CNXAUTO",
-    "M&M": "^CNXAUTO", "BAJAJ-AUTO": "^CNXAUTO",
-    "EICHERMOT": "^CNXAUTO",
-
-    # Energy / Oil & Gas
-    "RELIANCE": "^CNXENERGY", "ONGC": "^CNXENERGY",
-    "NTPC": "^CNXENERGY", "POWERGRID": "^CNXENERGY",
-    "BPCL": "^CNXENERGY",
-
-    # FMCG
-    "HINDUNILVR": "^CNXFMCG", "ITC": "^CNXFMCG",
-    "NESTLEIND": "^CNXFMCG", "BRITANNIA": "^CNXFMCG",
-
-    # Default
-    "DEFAULT": "^CNX100",
+    "^CNXAUTO": ("Auto", "auto"),
+    # Energy / PSU
+    "^CNXENERGY": ("Energy", "energy"),
+    "CPSEETF.NS": ("CPSE", "psu"),
+    "OILIETF.NS": ("Oil & Gas", "energy"),
+    # Infrastructure
+    "^CNXINFRA": ("Infra", "infra"),
+    "^CNXREALTY": ("Realty", "realty"),
+    # Media
+    "^CNXMEDIA": ("Media", "media"),
+    # Thematic
+    "MODEFENCE.NS": ("Defence", "thematic"),
+    "METALIETF.NS": ("Metal ETF", "materials"),
+    # Commodity
+    "GOLDBEES.NS": ("Gold", "COMMODITY"),
+    "SILVERBEES.NS": ("Silver", "COMMODITY"),
 }
 
-SECTOR_NAMES = {
-    "^NSEBANK":    "Banking",
-    "NIFTYIT.NS":  "IT",
-    "^CNXMETAL":   "Metals",
-    "^CNXPSE":     "PSE/Defense",
-    "^CNXPHARMA":  "Pharma",
-    "^CNXAUTO":    "Auto",
-    "^CNXENERGY":  "Energy",
-    "^CNXFMCG":    "FMCG",
-    "^CNX100":     "NIFTY 100",
-}
-
-SECTOR_TICKERS = list(set(v for k, v in SECTOR_INDEX.items() if k != "DEFAULT"))
-IT_TICKERS = ["NIFTYIT.NS", "^CNXIT"]  # fallback order
-MARKET_TICKER = "^CRSLDX"
-MARKET_FALLBACK = "^CNX100"
+# Convenience exports (legacy — kept for signal_engine.py compatibility)
+SECTOR_TICKERS = list(SECTOR_MAP.keys())
+SECTOR_NAMES = {t: v[0] for t, v in SECTOR_MAP.items()}

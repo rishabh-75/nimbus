@@ -1,0 +1,364 @@
+NIMBUS BACKTEST REPORT
+Generated: 2026-03-19 17:27:11
+Data mode: SYNTHETIC
+Symbols: 5
+Total signal snapshots: 640
+Date range: 2021-10-05 00:00:00 to 2024-03-12 00:00:00
+Step interval: every 5 bar(s)
+
+========================================================================
+  1. SIGNAL STATE DISTRIBUTIONS
+========================================================================
+
+  wr_phase:
+    NONE                     442  ( 69.1%)
+    LATE                     161  ( 25.2%)
+    DEVELOPING                27  (  4.2%)
+    FRESH                     10  (  1.6%)
+
+  position_state:
+    RIDING_UPPER             283  ( 44.2%)
+    MID_BAND_BROKEN          270  ( 42.2%)
+    CONSOLIDATING             50  (  7.8%)
+    FIRST_DIP                 37  (  5.8%)
+
+  vol_state:
+    NORMAL                   358  ( 55.9%)
+    SQUEEZE                  149  ( 23.3%)
+    EXPANDED                 133  ( 20.8%)
+
+  daily_bias:
+    BULLISH                  355  ( 55.5%)
+    BEARISH                  254  ( 39.7%)
+    NEUTRAL                   31  (  4.8%)
+
+  mfi_state:
+    FALLING                  173  ( 27.0%)
+    NEUTRAL                  171  ( 26.7%)
+    RISING                   162  ( 25.3%)
+    STRONG                    84  ( 13.1%)
+    WEAK                      50  (  7.8%)
+
+  bb_position:
+    above_upper              225  ( 35.2%)
+    riding                   145  ( 22.7%)
+    below_mid                139  ( 21.7%)
+    near_lower               131  ( 20.5%)
+
+  mfi_diverge:
+    False                    570  ( 89.1%)
+    True                      70  ( 10.9%)
+
+========================================================================
+  2. SIGNAL SCORECARD (discriminative power)
+========================================================================
+
+  Signals ranked by spread (best state avg return - worst state avg return).
+  Spread >= 0.5% = discriminative (✓). Below = noise (✗).
+
+  Signal                         Spread            Best State      Avg           Worst State      Avg       N
+  --------------------------------------------------------------------------------------------------------------
+  ✓ MFI State                   +1.532%                STRONG  +1.651%                  WEAK  +0.119%     640
+  ✓ Daily Bias                  +0.912%               BULLISH  +0.565%               NEUTRAL  -0.347%     640
+  ✓ BB Position State           +0.542%             FIRST_DIP  +0.996%          RIDING_UPPER  +0.454%     640
+  ✗ Entry Valid                 +0.471%                  True  +0.839%                 False  +0.368%     640
+  ✗ Volatility State            +0.465%                NORMAL  +0.677%               SQUEEZE  +0.212%     640
+  ✗ Momentum Pass               +0.426%                  True  +0.822%                 False  +0.396%     640
+  ✗ Full Entry (WR+BB+Bias)     +0.421%                  True  +0.819%                 False  +0.398%     640
+  ✗ W%R In Momentum             +0.416%                  True  +0.797%                 False  +0.381%     640
+  ✗ W%R Phase                   +0.369%                  LATE  +0.750%                  NONE  +0.381%     640
+  ✗ BB Position                 +0.269%             below_mid  +0.610%            near_lower  +0.341%     640
+  ✗ MFI Divergence              +0.094%                  True  +0.593%                 False  +0.499%     640
+
+========================================================================
+  3. SIGNAL EFFICACY TABLES (5-day forward returns)
+========================================================================
+
+── W%R Phase ──
+  State                     N    Win%   AvgRet   MedRet  Sharpe    MaxDD     PF   Skew
+  ------------------------------------------------------------------------------------------
+  LATE                    161   53.4%  +0.750%  +0.398%   1.36   -9.45%  1.73  1.19
+  ALL (baseline)          640   52.7%  +0.510%  +0.232%   0.98  -10.54%  1.45  0.62
+  NONE                    442   52.5%  +0.381%  +0.210%   0.75  -10.54%  1.33  0.40
+  DEVELOPING               27  (insufficient data)
+  FRESH                    10  (insufficient data)
+
+── BB Position State ──
+  State                     N    Win%   AvgRet   MedRet  Sharpe    MaxDD     PF   Skew
+  ------------------------------------------------------------------------------------------
+  FIRST_DIP                37   67.6%  +0.996%  +0.622%   2.32   -5.86%  2.45  0.13
+  CONSOLIDATING            50   46.0%  +0.625%  -0.320%   1.11   -5.27%  1.61  1.55
+  ALL (baseline)          640   52.7%  +0.510%  +0.232%   0.98  -10.54%  1.45  0.62
+  MID_BAND_BROKEN         270   54.1%  +0.479%  +0.483%   0.94   -9.90%  1.41  0.49
+  RIDING_UPPER            283   50.5%  +0.454%  +0.207%   0.84  -10.54%  1.39  0.60
+
+── Volatility State ──
+  State                     N    Win%   AvgRet   MedRet  Sharpe    MaxDD     PF   Skew
+  ------------------------------------------------------------------------------------------
+  NORMAL                  358   53.6%  +0.677%  +0.337%   1.24   -9.90%  1.60  0.55
+  ALL (baseline)          640   52.7%  +0.510%  +0.232%   0.98  -10.54%  1.45  0.62
+  EXPANDED                133   54.1%  +0.391%  +0.497%   0.69  -10.54%  1.30  0.81
+  SQUEEZE                 149   49.0%  +0.212%  -0.188%   0.53   -9.09%  1.21  0.26
+
+── Daily Bias ──
+  State                     N    Win%   AvgRet   MedRet  Sharpe    MaxDD     PF   Skew
+  ------------------------------------------------------------------------------------------
+  BULLISH                 355   51.5%  +0.565%  +0.207%   1.05  -10.54%  1.51  0.71
+  BEARISH                 254   55.5%  +0.537%  +0.566%   1.04   -9.90%  1.47  0.46
+  ALL (baseline)          640   52.7%  +0.510%  +0.232%   0.98  -10.54%  1.45  0.62
+  NEUTRAL                  31   41.9%  -0.347%  -0.258%  -1.04   -6.71%  0.68 -0.23
+
+── MFI State ──
+  State                     N    Win%   AvgRet   MedRet  Sharpe    MaxDD     PF   Skew
+  ------------------------------------------------------------------------------------------
+  STRONG                   84   65.5%  +1.651%  +1.326%   3.03   -7.77%  3.55  1.52
+  ALL (baseline)          640   52.7%  +0.510%  +0.232%   0.98  -10.54%  1.45  0.62
+  NEUTRAL                 171   53.2%  +0.439%  +0.104%   0.89   -8.40%  1.41  0.57
+  FALLING                 173   53.8%  +0.342%  +0.497%   0.63   -9.90%  1.27  0.35
+  RISING                  162   45.7%  +0.292%  -0.201%   0.57  -10.54%  1.24  0.50
+  WEAK                     50   48.0%  +0.119%  -0.484%   0.25   -7.72%  1.10  0.47
+
+── BB Position ──
+  State                     N    Win%   AvgRet   MedRet  Sharpe    MaxDD     PF   Skew
+  ------------------------------------------------------------------------------------------
+  below_mid               139   53.2%  +0.610%  +0.563%   1.17   -9.90%  1.55  0.45
+  above_upper             225   48.9%  +0.577%  -0.036%   1.06  -10.54%  1.51  0.84
+  ALL (baseline)          640   52.7%  +0.510%  +0.232%   0.98  -10.54%  1.45  0.62
+  riding                  145   55.9%  +0.461%  +0.387%   0.90   -9.45%  1.43  0.45
+  near_lower              131   55.0%  +0.341%  +0.225%   0.69   -9.09%  1.28  0.54
+
+── W%R In Momentum ──
+  State                     N    Win%   AvgRet   MedRet  Sharpe    MaxDD     PF   Skew
+  ------------------------------------------------------------------------------------------
+  True                    198   53.0%  +0.797%  +0.332%   1.45   -9.67%  1.77  0.98
+  ALL (baseline)          640   52.7%  +0.510%  +0.232%   0.98  -10.54%  1.45  0.62
+  False                   442   52.5%  +0.381%  +0.210%   0.75  -10.54%  1.33  0.40
+
+── Entry Valid ──
+  State                     N    Win%   AvgRet   MedRet  Sharpe    MaxDD     PF   Skew
+  ------------------------------------------------------------------------------------------
+  True                    192   53.1%  +0.839%  +0.373%   1.52   -9.67%  1.82  0.99
+  ALL (baseline)          640   52.7%  +0.510%  +0.232%   0.98  -10.54%  1.45  0.62
+  False                   448   52.5%  +0.368%  +0.204%   0.73  -10.54%  1.31  0.40
+
+── Momentum Pass ──
+  State                     N    Win%   AvgRet   MedRet  Sharpe    MaxDD     PF   Skew
+  ------------------------------------------------------------------------------------------
+  True                    171   53.8%  +0.822%  +0.536%   1.52   -9.67%  1.81  0.90
+  ALL (baseline)          640   52.7%  +0.510%  +0.232%   0.98  -10.54%  1.45  0.62
+  False                   469   52.2%  +0.396%  +0.194%   0.77  -10.54%  1.34  0.50
+
+── Full Entry (WR+BB+Bias) ──
+  State                     N    Win%   AvgRet   MedRet  Sharpe    MaxDD     PF   Skew
+  ------------------------------------------------------------------------------------------
+  True                    170   53.5%  +0.819%  +0.467%   1.51   -9.67%  1.80  0.90
+  ALL (baseline)          640   52.7%  +0.510%  +0.232%   0.98  -10.54%  1.45  0.62
+  False                   470   52.3%  +0.398%  +0.197%   0.78  -10.54%  1.34  0.50
+
+── MFI Divergence ──
+  State                     N    Win%   AvgRet   MedRet  Sharpe    MaxDD     PF   Skew
+  ------------------------------------------------------------------------------------------
+  True                     70   58.6%  +0.593%  +0.538%   1.28   -9.67%  1.69  0.46
+  ALL (baseline)          640   52.7%  +0.510%  +0.232%   0.98  -10.54%  1.45  0.62
+  False                   570   51.9%  +0.499%  +0.204%   0.95  -10.54%  1.43  0.64
+
+========================================================================
+  4. SIGNAL COMBINATION EFFECTS (top 5 per pair)
+========================================================================
+
+── W%R Phase × BB State ──
+  Combination                                   N    Win%   AvgRet  Sharpe
+  ----------------------------------------------------------------------
+  LATE + RIDING_UPPER                         134   54.5%  +0.772%   1.44
+  NONE + MID_BAND_BROKEN                      263   54.4%  +0.511%   1.01
+  NONE + CONSOLIDATING                         45   42.2%  +0.149%   0.32
+  NONE + RIDING_UPPER                         112   45.5%  -0.108%  -0.20
+
+── W%R Phase × Vol State ──
+  Combination                                   N    Win%   AvgRet  Sharpe
+  ----------------------------------------------------------------------
+  LATE + EXPANDED                              46   60.9%  +1.401%   2.38
+  LATE + NORMAL                                87   55.2%  +0.890%   1.56
+  NONE + NORMAL                               249   52.6%  +0.528%   0.98
+  NONE + SQUEEZE                              119   52.9%  +0.468%   1.13
+  NONE + EXPANDED                              74   51.4%  -0.255%  -0.49
+
+── Daily Bias × MFI State ──
+  Combination                                   N    Win%   AvgRet  Sharpe
+  ----------------------------------------------------------------------
+  BULLISH + STRONG                             81   65.4%  +1.696%   3.07
+  BEARISH + RISING                             31   58.1%  +1.145%   2.29
+  BEARISH + FALLING                           107   57.0%  +0.594%   1.04
+  BEARISH + NEUTRAL                            70   57.1%  +0.540%   1.15
+  BULLISH + NEUTRAL                            91   51.6%  +0.491%   0.93
+  BULLISH + RISING                            121   44.6%  +0.172%   0.32
+  BEARISH + WEAK                               43   46.5%  -0.039%  -0.08
+  BULLISH + FALLING                            56   46.4%  -0.170%  -0.33
+
+── BB State × MFI Divergence ──
+  Combination                                   N    Win%   AvgRet  Sharpe
+  ----------------------------------------------------------------------
+  FIRST_DIP + False                            32   68.8%  +1.023%   2.25
+  CONSOLIDATING + False                        44   45.5%  +0.719%   1.21
+  RIDING_UPPER + True                          41   63.4%  +0.647%   1.41
+  MID_BAND_BROKEN + False                     252   54.4%  +0.469%   0.93
+  RIDING_UPPER + False                        242   48.3%  +0.422%   0.77
+
+── WR Momentum × Daily Bias ──
+  Combination                                   N    Win%   AvgRet  Sharpe
+  ----------------------------------------------------------------------
+  True + BULLISH                              190   53.2%  +0.850%   1.53
+  False + BEARISH                             248   55.6%  +0.564%   1.09
+  False + BULLISH                             165   49.7%  +0.236%   0.46
+
+========================================================================
+  5. WEIGHT CALIBRATION (logistic regression)
+========================================================================
+  Model accuracy: 0.5417
+  AUC-ROC:        0.5401
+  N samples:      640
+
+  Feature                    New Wt  Current    Delta
+  -------------------------------------------------------
+  bb_position_n             -16.50   +5.00  -21.50
+  mfi_state_n               +14.68   +6.00   +8.68
+  entry_valid_n             +13.51   +5.00   +8.51
+  wr_phase_n                -11.22  +15.00  -26.22
+  daily_bias_n              -10.59  +15.00  -25.59
+  mfi_diverge_n              +9.73   -5.00  +14.73
+  position_state_n           +9.53  +15.00   -5.47
+  vol_state_n                -7.41  +10.00  -17.41
+  adv_cr                     +4.83   +1.00   +3.83
+  bb_width_pctl              -2.00   +2.00   -4.00
+
+========================================================================
+  6. SIGNAL CORRELATION ANALYSIS
+========================================================================
+  Pairs with |r| >= 0.6 (scoring these independently double-counts):
+
+  Signal A               Signal B                    r  Discount
+  -----------------------------------------------------------------
+  wr_phase_n             entry_valid_n          0.877   0.562
+  position_state_n       daily_bias_n           0.944   0.522
+  position_state_n       bb_position_n          0.955   0.522
+  position_state_n       entry_valid_n          0.612   0.522
+  vol_state_n            bb_width_pctl          0.902   0.549
+  daily_bias_n           bb_position_n          0.945   0.528
+  bb_position_n          entry_valid_n          0.611   0.522
+
+========================================================================
+  7. REGIME-DEPENDENT WEIGHTS
+========================================================================
+
+── TRENDING regime ──
+  Feature                    Weight
+  -----------------------------------
+  vol_state_n               -20.42
+  bb_position_n             -13.66
+  bb_width_pctl             -12.54
+  mfi_state_n               +11.34
+  adv_cr                    +10.68
+  mfi_diverge_n              +9.27
+  entry_valid_n              -9.14
+  position_state_n           +6.85
+  wr_phase_n                 +6.08
+  daily_bias_n               +0.00
+
+── RANGING regime ──
+  Feature                    Weight
+  -----------------------------------
+  daily_bias_n              -25.14
+  bb_width_pctl             +24.15
+  vol_state_n               +18.26
+  position_state_n          +14.46
+  adv_cr                     +6.45
+  mfi_diverge_n              -5.27
+  entry_valid_n              +3.22
+  bb_position_n              -1.65
+  mfi_state_n                -0.75
+  wr_phase_n                 -0.64
+
+========================================================================
+  8. TRADE SIMULATION RESULTS
+========================================================================
+  Total trades:     104
+  Win rate:         43.3%
+  Avg P&L:          +1.679%
+  Median P&L:       -0.621%
+  Total P&L:        +174.64%
+  Profit factor:    2.06
+  Sharpe:           1.36
+  Max drawdown:     -27.76%
+  Avg hold (bars):  9.9
+  Final equity:     $406.05 (from $100)
+
+── Exit reasons ──
+  MID_BAND_BROKEN                   50  (48.1%)
+  ATR_TRAIL_STOP (2.0x)             29  (27.9%)
+  PROFIT_TARGET                     10  (9.6%)
+  TIME_EXIT (10bars, <1.0%)         10  (9.6%)
+  END_OF_DATA                        3  (2.9%)
+  MAX_HOLD (25bars)                  2  (1.9%)
+
+── Performance by W%R phase at entry ──
+  FRESH           N=  30  Win= 36.7%  Avg=+1.179%
+  DEVELOPING      N=  16  Win= 43.8%  Avg=+0.751%
+  LATE            N=  58  Win= 46.6%  Avg=+2.194%
+
+── Performance by sizing ──
+  FULL      N=  39  Win= 38.5%  Avg=+1.200%
+  HALF      N=  65  Win= 46.2%  Avg=+1.967%
+
+── Performance by vol state at entry ──
+  NORMAL        N=  66  Win= 45.5%  Avg=+2.529%
+  EXPANDED      N=  14  Win= 50.0%  Avg=+0.256%
+  SQUEEZE       N=  24  Win= 33.3%  Avg=+0.173%
+
+========================================================================
+  9. TEMPORAL STABILITY (is the edge consistent?)
+========================================================================
+
+── position_state=RIDING_UPPER ──
+  Period                  Range     N   Win%   AvgRet  Sharpe
+  ------------------------------------------------------------
+  Q1        2021-10–   2022-05    70  44.3%  -0.197%  -0.41
+  Q2        2022-05–   2022-12    70  61.4%  +1.322%   2.48
+  Q3        2022-12–   2023-08    70  45.7%  +0.105%   0.21
+  Q4        2023-08–   2024-03    73  50.7%  +0.582%   0.96
+
+========================================================================
+  10. ACTIONABLE SUMMARY FOR PIPELINE CHANGES
+========================================================================
+
+  DISCRIMINATIVE signals (keep, validate weights):
+    ✓ MFI State
+    ✓ Daily Bias
+    ✓ BB Position State
+
+  NON-DISCRIMINATIVE signals (consider removing from scoring):
+    ✗ Entry Valid
+    ✗ Volatility State
+    ✗ Momentum Pass
+    ✗ Full Entry (WR+BB+Bias)
+    ✗ W%R In Momentum
+    ✗ W%R Phase
+    ✗ BB Position
+    ✗ MFI Divergence
+
+  CORRELATED pairs (apply discount to avoid double-counting):
+    wr_phase_n ↔ entry_valid_n: r=0.877
+    position_state_n ↔ daily_bias_n: r=0.944
+    position_state_n ↔ bb_position_n: r=0.955
+    position_state_n ↔ entry_valid_n: r=0.612
+    vol_state_n ↔ bb_width_pctl: r=0.902
+    daily_bias_n ↔ bb_position_n: r=0.945
+    bb_position_n ↔ entry_valid_n: r=0.611
+
+  WEIGHT CHANGES (largest delta from current):
+    wr_phase_n: -26.22
+    daily_bias_n: -25.59
+    bb_position_n: -21.50
+    vol_state_n: -17.41
+    mfi_diverge_n: +14.73
+
+── END OF REPORT ──

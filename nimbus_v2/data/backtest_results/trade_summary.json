@@ -1,0 +1,68 @@
+{
+  "n_trades": 104,
+  "win_rate": 43.3,
+  "avg_pnl": 1.679,
+  "med_pnl": -0.621,
+  "total_pnl": 174.64,
+  "avg_win": 7.526,
+  "avg_loss": -2.78,
+  "profit_factor": 2.06,
+  "sharpe": 1.36,
+  "max_drawdown": -27.76,
+  "avg_hold_bars": 9.9,
+  "final_equity": 406.05,
+  "exit_reasons": {
+    "ATR_TRAIL_STOP (2.0x)": 29,
+    "MID_BAND_BROKEN": 50,
+    "PROFIT_TARGET": 10,
+    "TIME_EXIT (10bars, <1.0%)": 10,
+    "MAX_HOLD (25bars)": 2,
+    "END_OF_DATA": 3
+  },
+  "by_wr_phase": {
+    "FRESH": {
+      "n": 30,
+      "win_pct": 36.7,
+      "avg_pnl": 1.179
+    },
+    "DEVELOPING": {
+      "n": 16,
+      "win_pct": 43.8,
+      "avg_pnl": 0.751
+    },
+    "LATE": {
+      "n": 58,
+      "win_pct": 46.6,
+      "avg_pnl": 2.194
+    }
+  },
+  "by_vol_state": {
+    "NORMAL": {
+      "n": 66,
+      "win_pct": 45.5,
+      "avg_pnl": 2.529
+    },
+    "EXPANDED": {
+      "n": 14,
+      "win_pct": 50.0,
+      "avg_pnl": 0.256
+    },
+    "SQUEEZE": {
+      "n": 24,
+      "win_pct": 33.3,
+      "avg_pnl": 0.173
+    }
+  },
+  "by_sizing": {
+    "FULL": {
+      "n": 39,
+      "win_pct": 38.5,
+      "avg_pnl": 1.2
+    },
+    "HALF": {
+      "n": 65,
+      "win_pct": 46.2,
+      "avg_pnl": 1.967
+    }
+  }
+}

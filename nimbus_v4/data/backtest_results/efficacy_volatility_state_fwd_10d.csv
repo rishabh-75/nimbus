@@ -1,0 +1,5 @@
+state,n,win_pct,avg_ret,med_ret,std_ret,sharpe,max_dd,max_up,profit_factor,skew,insufficient
+EXPANDED,133,58.6,1.225,1.113,6.314,1.38,-11.4,37.83,1.76,1.69,False
+NORMAL,358,58.1,1.213,0.582,5.429,1.59,-14.52,26.41,1.89,0.76,False
+ALL (baseline),640,57.2,1.054,0.658,5.383,1.39,-14.52,37.83,1.74,1.08,False
+SQUEEZE,149,53.7,0.521,0.512,4.253,0.87,-10.47,14.94,1.38,0.45,False

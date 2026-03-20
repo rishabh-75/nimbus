@@ -1,0 +1,5 @@
+state,n,win_pct,avg_ret,med_ret,std_ret,sharpe,max_dd,max_up,profit_factor,skew,insufficient
+BEARISH,254,52.4,0.185,0.033,1.751,0.75,-5.65,9.59,1.35,1.17,False
+ALL (baseline),640,51.4,0.066,0.032,1.707,0.27,-7.18,9.59,1.11,0.37,False
+BULLISH,355,51.8,0.005,0.057,1.705,0.02,-7.18,4.96,1.01,-0.28,False
+NEUTRAL,31,38.7,-0.211,-0.39,1.282,-1.17,-2.65,3.41,0.65,0.51,False

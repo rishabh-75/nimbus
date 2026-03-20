@@ -1,0 +1,13 @@
+state,n,win_pct,avg_ret,med_ret,std_ret,sharpe,max_dd,max_up,profit_factor,skew,insufficient
+LATE + EXPANDED,46,60.9,1.401,1.072,4.175,2.38,-4.55,21.26,2.87,2.39,False
+LATE + NORMAL,87,55.2,0.89,0.536,4.062,1.56,-9.45,12.4,1.82,0.41,False
+NONE + NORMAL,249,52.6,0.528,0.208,3.833,0.98,-9.9,16.04,1.45,0.62,False
+ALL (baseline),640,52.7,0.51,0.232,3.7,0.98,-10.54,21.26,1.45,0.62,False
+NONE + SQUEEZE,119,52.9,0.468,0.263,2.944,1.13,-9.09,7.29,1.52,0.21,False
+NONE + EXPANDED,74,51.4,-0.255,0.166,3.697,-0.49,-10.54,8.2,0.84,-0.27,False
+DEVELOPING + EXPANDED,11,,,,,,,,,,True
+DEVELOPING + NORMAL,16,,,,,,,,,,True
+FRESH + EXPANDED,2,,,,,,,,,,True
+FRESH + NORMAL,6,,,,,,,,,,True
+FRESH + SQUEEZE,2,,,,,,,,,,True
+LATE + SQUEEZE,28,,,,,,,,,,True

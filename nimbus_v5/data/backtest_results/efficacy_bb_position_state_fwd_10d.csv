@@ -1,0 +1,6 @@
+state,n,win_pct,avg_ret,med_ret,std_ret,sharpe,max_dd,max_up,profit_factor,skew,insufficient
+CONSOLIDATING,50,50.0,1.769,0.029,6.347,1.98,-10.47,18.83,2.34,1.05,False
+RIDING_UPPER,283,58.3,1.195,0.668,5.693,1.49,-12.96,37.83,1.84,1.36,False
+ALL (baseline),640,57.2,1.054,0.658,5.383,1.39,-14.52,37.83,1.74,1.08,False
+FIRST_DIP,37,62.2,0.883,1.584,3.797,1.65,-8.9,8.37,1.75,-0.4,False
+MID_BAND_BROKEN,270,56.7,0.798,0.794,5.041,1.12,-14.52,21.44,1.55,0.65,False

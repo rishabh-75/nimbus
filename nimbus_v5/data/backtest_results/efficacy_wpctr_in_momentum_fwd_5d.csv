@@ -1,0 +1,4 @@
+state,n,win_pct,avg_ret,med_ret,std_ret,sharpe,max_dd,max_up,profit_factor,skew,insufficient
+True,198,53.0,0.797,0.332,3.916,1.45,-9.67,21.26,1.77,0.98,False
+ALL (baseline),640,52.7,0.51,0.232,3.7,0.98,-10.54,21.26,1.45,0.62,False
+False,442,52.5,0.381,0.21,3.595,0.75,-10.54,16.04,1.33,0.4,False

@@ -286,7 +286,7 @@ with st.sidebar:
             "→",
             key="custom_sym_go",
             help="Load custom symbol",
-            use_container_width=True,
+            width="stretch",
         )
 
     # Determine active symbol: custom Go button wins, otherwise dropdown
@@ -345,7 +345,7 @@ with st.sidebar:
             if s:
                 st.session_state["spot"] = s
             st.success(msg_up)
-    if st.button("Download from NSE", use_container_width=True):
+    if st.button("Download from NSE", width="stretch"):
         run_pipeline(fetch_options=True)
         st.rerun()
     st.divider()
@@ -416,7 +416,7 @@ with hdr_col:
         unsafe_allow_html=True,
     )
 with ref_col:
-    if st.button("⟳ Refresh", use_container_width=False):
+    if st.button("⟳ Refresh", width="content"):
         run_pipeline(fetch_options=False)
         st.rerun()
 
@@ -491,7 +491,7 @@ with tab_dash:
 
     # ── Chart ─────────────────────────────────────────────────────────────────
     fig = ch.main_chart(price_df, ctx=ctx, ps=ps, symbol=symbol)
-    st.plotly_chart(fig, use_container_width=True, key="main_chart")
+    st.plotly_chart(fig, width="stretch", key="main_chart")
 
     # ── KPI strip ─────────────────────────────────────────────────────────────
     k1, k2, k3, k4, k5, k6, k7, k8 = st.columns(8)
@@ -725,9 +725,7 @@ with tab_dash:
                 unsafe_allow_html=True,
             )
         if ctx:
-            st.plotly_chart(
-                ch.gex_expiry_bar(ctx), use_container_width=True, key="gex_bar"
-            )
+            st.plotly_chart(ch.gex_expiry_bar(ctx), width="stretch", key="gex_bar")
 
 
 # ╔══════════════════════════════════════════════════════════════════════════════
@@ -737,7 +735,7 @@ with tab_scan:
     # ── Control bar ───────────────────────────────────────────────────────────
     sc1, sc2, sc3, sc4, sc5 = st.columns([2, 2, 2, 2, 4])
     with sc1:
-        run_scan = st.button("▶ Run Scanner", use_container_width=True)
+        run_scan = st.button("▶ Run Scanner", width="stretch")
     with sc2:
         min_via = st.slider("Min Viability", 0, 100, 50, key="scan_min_via")
     with sc3:
@@ -906,7 +904,7 @@ with tab_scan:
 
         st.dataframe(
             styled,
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
             column_config={
                 "Symbol": st.column_config.TextColumn("Symbol", width=80),
@@ -931,7 +929,7 @@ with tab_scan:
                 label_visibility="collapsed",
             )
         with act2:
-            if st.button("📊 Open in Dashboard", use_container_width=True):
+            if st.button("📊 Open in Dashboard", width="stretch"):
                 st.session_state["symbol"] = sel_sym
                 st.session_state["options_df"] = pd.DataFrame()
                 st.session_state["last_refresh"] = None
@@ -939,7 +937,7 @@ with tab_scan:
                 run_pipeline(fetch_options=True)
                 st.rerun()
         with act3:
-            if st.button("➕ Add to Watchlist", use_container_width=True):
+            if st.button("➕ Add to Watchlist", width="stretch"):
                 row_data = next((r for r in results if r["symbol"] == sel_sym), {})
                 st.session_state["watchlist"] = wl_mod.add_entry(
                     st.session_state["watchlist"],
@@ -1006,7 +1004,7 @@ with tab_wl:
             wl_notes = st.text_input(
                 "Notes", key="wl_notes", placeholder="Entry thesis…"
             )
-        if st.button("+ Add to Watchlist", use_container_width=False):
+        if st.button("+ Add to Watchlist", width="content"):
             if wl_sym:
                 st.session_state["watchlist"] = wl_mod.add_entry(
                     st.session_state["watchlist"],
@@ -1025,7 +1023,7 @@ with tab_wl:
     # ── Refresh button ────────────────────────────────────────────────────────
     wl_r1, wl_r2 = st.columns([2, 8])
     with wl_r1:
-        do_refresh = st.button("🔄 Refresh Watchlist", use_container_width=True)
+        do_refresh = st.button("🔄 Refresh Watchlist", width="stretch")
 
     if do_refresh and wl:
         prog_wl = st.progress(0, text="Refreshing…")

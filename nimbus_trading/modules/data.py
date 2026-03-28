@@ -1,529 +1,657 @@
 """
-modules/charts.py — NIMBUS Emerald Slate
-Chart: 3-row Plotly (Candles+BB | Volume | W%R)
+modules/data.py
+───────────────
+Price data (yfinance) + NSE options chain download.
 
-Key implementation notes:
-  - Index converted to tz-naive Python datetimes for Plotly (avoids 1970 epoch bug)
-  - rangebreaks hide weekends + non-NSE hours (09:15–15:30 IST)
-  - BB bands: neutral grey (TradingView reference)
-  - Position state annotation on latest candle
+CONFIRMED WORKING PATTERNS (from nse_dashboard transcript):
+  NSE session  → Firefox/82 UA + allow_redirects=False + cookies = dict(resp.cookies)
+  NSE API      → same header dict + allow_redirects=False on every call
+  yfinance     → tickers= kwarg + start= date string (NOT period=)
+                 fallback: 1h unavailable → use daily bars
 """
 
 from __future__ import annotations
-from typing import Optional
-import datetime as dt
+
+import time
+import datetime
+from datetime import date, timedelta
+from typing import Optional, Tuple
+
+import requests
 import pandas as pd
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-from modules.analytics import OptionsContext
-from modules.indicators import PriceSignals
+import numpy as np
 
-BG = "#080c10"
-SURFACE = "#0d1117"
-BORDER = "#1e2937"
-EM = "#10b981"
-RED = "#ef4444"
-GOLD = "#f59e0b"
-VIOLET = "#8b5cf6"
-WHITE = "#e2e8f0"
-MUTED = "#64748b"
-UP = "#26a69a"
-DOWN = "#ef5350"
-BB_LINE = "rgba(200,200,220,0.60)"
-BB_FILL = "rgba(200,200,220,0.05)"
-BB_MID = "rgba(200,200,220,0.30)"
+# ── NSE constants ─────────────────────────────────────────────────────────────
+NSE_INDEX_SYMBOLS = {"NIFTY", "BANKNIFTY", "FINNIFTY", "MIDCPNIFTY", "NIFTYNXT50"}
 
-# State → colour mapping for annotation dot
-STATE_COLORS = {
-    "RIDING_UPPER": EM,
-    "CONSOLIDATING": GOLD,
-    "FIRST_DIP": GOLD,
-    "MID_BAND_BROKEN": RED,
+NSE_LOT_SIZES: dict[str, int] = {
+    "NIFTY": 75,
+    "BANKNIFTY": 30,
+    "FINNIFTY": 40,
+    "MIDCPNIFTY": 120,
+    "NIFTYNXT50": 25,
+    "RELIANCE": 250,
+    "TCS": 150,
+    "INFY": 300,
+    "HDFCBANK": 550,
+    "ICICIBANK": 700,
+    "SBIN": 1500,
+    "AXISBANK": 1200,
+    "KOTAKBANK": 400,
+    "BAJFINANCE": 125,
+    "WIPRO": 1500,
+    "LT": 175,
+    "MARUTI": 50,
+    "ADANIENT": 625,
+    "ADANIPORTS": 625,
+    "TATAMOTORS": 1425,
+    "TATASTEEL": 5500,
+    "JSWSTEEL": 1350,
+    "HINDALCO": 2150,
+    "SUNPHARMA": 700,
+    "DRREDDY": 125,
+    "CIPLA": 650,
+    "NTPC": 3000,
+    "POWERGRID": 3375,
+    "ONGC": 3850,
+    "BPCL": 1800,
+}
+
+# ── confirmed working NSE request header ──────────────────────────────────────
+# Do NOT change this. Firefox/82 + these exact fields = NSE hands over cookies.
+_NSE_HEADER = {
+    "Host": "www.nseindia.com",
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:82.0) "
+        "Gecko/20100101 Firefox/82.0"
+    ),
+    "Accept": (
+        "text/html,application/xhtml+xml,application/xml;" "q=0.9,image/webp,*/*;q=0.8"
+    ),
+    "Accept-Language": "en-US,en;q=0.5",
+    "Connection": "keep-alive",
+    "Referer": "https://www.nseindia.com/option-chain",
 }
 
 
-def _to_naive_datetimes(df: pd.DataFrame) -> list:
-    """
-    Convert DataFrame index to a list of tz-naive Python datetime objects.
-    This is the safest format for Plotly — avoids the int64-nanosecond epoch bug.
-    """
-    idx = pd.DatetimeIndex(df.index)
-    if idx.tzinfo is not None:
-        idx = idx.tz_convert("Asia/Kolkata").tz_localize(None)
-    return idx.to_pydatetime().tolist()
+# ══════════════════════════════════════════════════════════════════════════════
+# NSE SESSION  (confirmed working — do not modify the pattern)
+# ══════════════════════════════════════════════════════════════════════════════
 
 
-def _rangebreaks():
+def _make_nse_session() -> Tuple[requests.Session, dict]:
     """
-    Plotly rangebreaks to hide non-NSE hours and weekends.
-    NSE market: Mon-Fri 09:15 – 15:30 IST.
-    bounds=[15.5, 9.25] means: hide from 15:30 to 09:15 next day (fractional hours).
+    Build a requests.Session with NSE cookies.
+
+    CONFIRMED PATTERN:
+      1. GET option-chain page with allow_redirects=False
+         → NSE hands over real session cookies (not bot-detection redirect)
+      2. cookies = dict(resp.cookies)   ← from the RESPONSE, not session.cookies
+         These are different when allow_redirects=False.
+      3. Every subsequent API call also uses allow_redirects=False + same header.
     """
-    return [
-        dict(bounds=["sat", "mon"]),  # hide weekends
-        dict(bounds=[15.5, 9.25], pattern="hour"),  # hide overnight
-    ]
+    session = requests.Session()
+    resp = session.get(
+        "https://www.nseindia.com/option-chain",
+        headers=_NSE_HEADER,
+        allow_redirects=False,  # ← critical: do NOT follow redirects
+        timeout=15,
+    )
+    cookies = dict(resp.cookies)  # ← resp.cookies, NOT session.cookies
+    return session, cookies
 
 
-def main_chart(
-    price_df: pd.DataFrame,
-    ctx: Optional[OptionsContext] = None,
-    ps: Optional[PriceSignals] = None,
-    symbol: str = "NIFTY",
-) -> go.Figure:
-    if price_df is None or price_df.empty:
-        fig = go.Figure()
-        fig.update_layout(
-            paper_bgcolor=BG,
-            plot_bgcolor=SURFACE,
-            height=640,
-            margin=dict(l=10, r=20, t=32, b=10),
-            annotations=[
-                dict(
-                    text="No price data — click Refresh",
-                    xref="paper",
-                    yref="paper",
-                    x=0.5,
-                    y=0.5,
-                    showarrow=False,
-                    font=dict(color=MUTED, size=13),
+def _get_expiry_dates(
+    session: requests.Session, cookies: dict, symbol: str
+) -> list[str]:
+    url = f"https://www.nseindia.com/api/option-chain-contract-info" f"?symbol={symbol}"
+    resp = session.get(
+        url,
+        headers=_NSE_HEADER,
+        cookies=cookies,
+        allow_redirects=False,  # ← same pattern on every API call
+        timeout=15,
+    )
+    _assert_json(resp)
+    return resp.json().get("expiryDates", [])
+
+
+def _fetch_expiry(
+    session: requests.Session, cookies: dict, symbol: str, expiry: str
+) -> list[dict]:
+    chain_type = "Indices" if symbol in NSE_INDEX_SYMBOLS else "Equities"
+    url = (
+        f"https://www.nseindia.com/api/option-chain-v3"
+        f"?type={chain_type}&symbol={symbol}&expiry={expiry}"
+    )
+    resp = session.get(
+        url,
+        headers=_NSE_HEADER,
+        cookies=cookies,
+        allow_redirects=False,  # ← same pattern
+        timeout=20,
+    )
+    _assert_json(resp)
+    data = resp.json()
+    return data.get("data", []) or data.get("records", {}).get("data", []) or []
+
+
+def _assert_json(resp: requests.Response) -> None:
+    """Raise a clear error if NSE returned HTML or empty body."""
+    body = resp.text.strip()
+    if not body:
+        raise ValueError(
+            "NSE returned an empty response — likely rate-limited. "
+            "Wait 30s and retry, or upload a CSV."
+        )
+    if body.startswith("<"):
+        raise ValueError(
+            "NSE returned HTML instead of JSON — cookie/session issue. "
+            "This sometimes resolves on retry; otherwise upload a CSV."
+        )
+
+
+def download_options(
+    symbol: str,
+    max_expiries: int = 5,
+    progress_cb=None,
+) -> Tuple[Optional[pd.DataFrame], str]:
+    """
+    Download full options chain from NSE for up to max_expiries expiries.
+    Returns (DataFrame, status_message).
+    """
+    try:
+        session, cookies = _make_nse_session()
+
+        expiries = _get_expiry_dates(session, cookies, symbol)
+        if not expiries:
+            return None, f"No expiry dates returned for {symbol}"
+
+        expiries = expiries[:max_expiries]
+        frames = []
+
+        for i, exp in enumerate(expiries):
+            if progress_cb:
+                progress_cb(f"{symbol} {exp}  ({i+1}/{len(expiries)})")
+            rows = _fetch_expiry(session, cookies, symbol, exp)
+            if rows:
+                frames.append(_parse_rows(rows, symbol, exp))
+            time.sleep(0.4)
+
+        if not frames:
+            return None, "All expiries returned empty data"
+
+        combined = pd.concat(frames, ignore_index=True)
+        return combined, f"✓ {len(frames)} expiries downloaded for {symbol}"
+
+    except Exception as exc:
+        return None, f"NSE download failed: {exc}"
+
+
+def _parse_rows(raw_rows: list, symbol: str, expiry: str) -> pd.DataFrame:
+    """Convert raw option-chain-v3 rows into a flat DataFrame."""
+    records = []
+    for item in raw_rows:
+        strike = item.get("strikePrice", 0)
+        ce = item.get("CE", {})
+        pe = item.get("PE", {})
+        records.append(
+            {
+                "Strike": strike,
+                "Expiry": expiry,
+                "UnderlyingValue": ce.get("underlyingValue")
+                or pe.get("underlyingValue")
+                or 0,
+                "CE_OI": ce.get("openInterest", 0),
+                "CE_ChgOI": ce.get("changeinOpenInterest", 0),
+                "CE_Volume": ce.get("totalTradedVolume", 0),
+                "CE_IV": ce.get("impliedVolatility", 0),
+                "CE_LTP": ce.get("lastPrice", 0),
+                "PE_OI": pe.get("openInterest", 0),
+                "PE_ChgOI": pe.get("changeinOpenInterest", 0),
+                "PE_Volume": pe.get("totalTradedVolume", 0),
+                "PE_IV": pe.get("impliedVolatility", 0),
+                "PE_LTP": pe.get("lastPrice", 0),
+            }
+        )
+    return pd.DataFrame(records)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PRICE DATA  (confirmed working yfinance pattern from transcript)
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+def _yf_ticker(symbol: str) -> str:
+    mapping = {
+        "NIFTY": "^NSEI",
+        "BANKNIFTY": "^NSEBANK",
+        "FINNIFTY": "NIFTY_FIN_SERVICE.NS",
+        "MIDCPNIFTY": "^CNXMIDCAP",
+        "SENSEX": "^BSESN",
+    }
+    return mapping.get(symbol, f"{symbol}.NS")
+
+
+def _flatten_yf(raw: pd.DataFrame) -> pd.DataFrame:
+    """Flatten MultiIndex columns and normalise names."""
+    if isinstance(raw.columns, pd.MultiIndex):
+        raw.columns = raw.columns.get_level_values(0)
+    raw.columns = [str(c).strip().title().replace(" ", "_") for c in raw.columns]
+    raw = raw.rename(columns={"Adj_Close": "Close", "Adj Close": "Close"})
+    return raw
+
+
+def get_price_4h(symbol: str, bars: int = 120) -> Tuple[pd.DataFrame, str]:
+    """
+    Fetch OHLCV and return as 4-hour bars.
+
+    CONFIRMED PATTERN (from transcript):
+      yf.download(tickers=ticker, start=date_string, interval="1h", ...)
+      NOT period=, NOT positional ticker.
+
+    Two-tier fallback:
+      1. 1h bars resampled to 4h (60-day window)
+      2. Daily bars used directly if 1h is unavailable/empty
+    """
+    try:
+        import yfinance as yf
+    except ImportError:
+        return pd.DataFrame(), "yfinance not installed — pip install yfinance"
+
+    ticker = _yf_ticker(symbol)
+    start_60d = (date.today() - timedelta(days=60)).isoformat()
+    start_365d = (date.today() - timedelta(days=365)).isoformat()
+
+    # ── Attempt 1: 1h → resample to 4h ───────────────────────────────────────
+    try:
+        raw = yf.download(
+            tickers=ticker,  # ← tickers= keyword (confirmed working)
+            start=start_60d,  # ← start= date string (confirmed working)
+            interval="1h",
+            auto_adjust=True,
+            progress=False,
+        )
+        raw = _flatten_yf(raw)
+        if not raw.empty and "Close" in raw.columns and len(raw) >= 10:
+            raw = raw[raw["Close"] > 0].copy()
+            raw.index = pd.to_datetime(raw.index)
+            df = (
+                raw.resample("4h", closed="right", label="right")
+                .agg(
+                    Open=("Open", "first"),
+                    High=("High", "max"),
+                    Low=("Low", "min"),
+                    Close=("Close", "last"),
+                    Volume=("Volume", "sum"),
                 )
-            ],
-        )
-        return fig
-
-    df = price_df.copy()
-    xs = _to_naive_datetimes(df)
-
-    has_vol = "Volume" in df.columns and df["Volume"].fillna(0).sum() > 0
-    has_wr = "WR" in df.columns
-    has_bb = "BB_Upper" in df.columns
-
-    fig = make_subplots(
-        rows=3,
-        cols=1,
-        row_heights=[0.63, 0.14, 0.23],
-        shared_xaxes=True,
-        vertical_spacing=0.008,
-    )
-
-    # ── Row 1: Candlesticks ───────────────────────────────────────────────────
-    fig.add_trace(
-        go.Candlestick(
-            x=xs,
-            open=df["Open"].tolist(),
-            high=df["High"].tolist(),
-            low=df["Low"].tolist(),
-            close=df["Close"].tolist(),
-            increasing=dict(line=dict(color=UP, width=0.8), fillcolor=UP),
-            decreasing=dict(line=dict(color=DOWN, width=0.8), fillcolor=DOWN),
-            name="Price",
-            hovertext=[
-                f"O:{r['Open']:.1f}  H:{r['High']:.1f}  L:{r['Low']:.1f}  C:{r['Close']:.1f}"
-                for _, r in df.iterrows()
-            ],
-            hoverinfo="text+x",
-            showlegend=False,
-        ),
-        row=1,
-        col=1,
-    )
-
-    # ── Row 1: Bollinger Bands ────────────────────────────────────────────────
-    if has_bb:
-        upper = df["BB_Upper"].ffill().tolist()
-        lower = df["BB_Lower"].ffill().tolist()
-        mid = df["BB_Mid"].ffill().tolist()
-
-        # Polygon fill between bands
-        fig.add_trace(
-            go.Scatter(
-                x=xs + xs[::-1],
-                y=upper + lower[::-1],
-                fill="toself",
-                fillcolor=BB_FILL,
-                line=dict(width=0),
-                hoverinfo="skip",
-                showlegend=False,
-            ),
-            row=1,
-            col=1,
-        )
-        fig.add_trace(
-            go.Scatter(
-                x=xs,
-                y=upper,
-                line=dict(color=BB_LINE, width=1.2),
-                connectgaps=True,
-                hovertemplate="BB Up: %{y:.1f}<extra></extra>",
-                showlegend=False,
-            ),
-            row=1,
-            col=1,
-        )
-        fig.add_trace(
-            go.Scatter(
-                x=xs,
-                y=lower,
-                line=dict(color=BB_LINE, width=1.2),
-                connectgaps=True,
-                hovertemplate="BB Lo: %{y:.1f}<extra></extra>",
-                showlegend=False,
-            ),
-            row=1,
-            col=1,
-        )
-        fig.add_trace(
-            go.Scatter(
-                x=xs,
-                y=mid,
-                line=dict(color=BB_MID, width=0.9, dash="dot"),
-                connectgaps=True,
-                hovertemplate="BB Mid: %{y:.1f}<extra></extra>",
-                showlegend=False,
-            ),
-            row=1,
-            col=1,
-        )
-
-    # ── Row 1: Daily SMA line (if available) ──────────────────────────────────
-    if ps and ps.daily_sma:
-        sma_val = ps.daily_sma
-        sma_color = (
-            EM
-            if ps.daily_bias == "BULLISH"
-            else (RED if ps.daily_bias == "BEARISH" else GOLD)
-        )
-        fig.add_shape(
-            type="line",
-            xref="paper",
-            yref="y1",
-            x0=0,
-            x1=1,
-            y0=sma_val,
-            y1=sma_val,
-            line=dict(color=sma_color, width=1.0, dash="dash"),
-        )
-        fig.add_annotation(
-            xref="paper",
-            yref="y1",
-            x=0.01,
-            y=sma_val,
-            text=f"D·SMA {sma_val:,.0f}",
-            showarrow=False,
-            font=dict(color=sma_color, size=8, family="JetBrains Mono,monospace"),
-            xanchor="left",
-            yanchor="bottom",
-            bgcolor="rgba(8,12,16,0.8)",
-        )
-
-    # ── Row 1: OI wall lines ──────────────────────────────────────────────────
-    if ctx is not None:
-        _add_wall_lines(fig, ctx)
-
-    # ── Row 2: Volume ─────────────────────────────────────────────────────────
-    if has_vol:
-        closes = df["Close"].values
-        opens = df["Open"].values
-        vol_colors = [
-            "rgba(38,166,154,0.50)" if c >= o else "rgba(239,83,80,0.50)"
-            for c, o in zip(closes, opens)
-        ]
-        fig.add_trace(
-            go.Bar(
-                x=xs,
-                y=df["Volume"].fillna(0).tolist(),
-                marker_color=vol_colors,
-                marker_line_width=0,
-                hovertemplate="Vol: %{y:,.0f}<extra></extra>",
-                showlegend=False,
-            ),
-            row=2,
-            col=1,
-        )
-    else:
-        fig.add_trace(go.Scatter(x=[], y=[], showlegend=False), row=2, col=1)
-
-    # ── Row 3: Williams %R ────────────────────────────────────────────────────
-    if has_wr:
-        wr_vals = df["WR"].ffill().tolist()
-        fig.add_trace(
-            go.Scatter(
-                x=xs,
-                y=wr_vals,
-                line=dict(color=EM, width=1.6),
-                connectgaps=True,
-                hovertemplate="W%%R: %{y:.1f}<extra></extra>",
-                showlegend=False,
-            ),
-            row=3,
-            col=1,
-        )
-
-        # Momentum zone fill (above -20 = green)
-        above = [max(v, -20) for v in wr_vals]
-        fig.add_trace(
-            go.Scatter(
-                x=xs + xs[::-1],
-                y=above + [-20] * len(xs),
-                fill="toself",
-                fillcolor="rgba(16,185,129,0.10)",
-                line=dict(width=0),
-                hoverinfo="skip",
-                showlegend=False,
-            ),
-            row=3,
-            col=1,
-        )
-
-        # Reference lines on WR panel
-        for y_val, color in [(-20, EM), (-50, BORDER), (-80, RED)]:
-            fig.add_shape(
-                type="line",
-                xref="paper",
-                yref="y3",
-                x0=0,
-                x1=1,
-                y0=y_val,
-                y1=y_val,
-                line=dict(color=color, width=0.8, dash="dash"),
+                .dropna(subset=["Close"])
             )
-        for y_val, color, lbl in [(-20, EM, "-20"), (-80, RED, "-80")]:
-            fig.add_annotation(
-                xref="paper",
-                yref="y3",
-                x=1.01,
-                y=y_val,
-                text=lbl,
-                showarrow=False,
-                font=dict(color=color, size=8, family="JetBrains Mono,monospace"),
-                xanchor="left",
-                yanchor="middle",
-            )
+            df = df[df["Close"] > 0].tail(bars).copy()
+            if not df.empty:
+                return df, f"✓ {ticker} · {len(df)} × 4h bars"
+    except Exception:
+        pass
 
-        # Current WR value label — always shows the LAST bar's value so it
-        # matches the tile even when the cursor is on an earlier bar.
-        last_wr = next(
-            (
-                v
-                for v in reversed(wr_vals)
-                if v is not None and not (isinstance(v, float) and v != v)
-            ),
-            None,
+    # ── Attempt 2: daily bars (4h unavailable) ────────────────────────────────
+    try:
+        raw = yf.download(
+            tickers=ticker,
+            start=start_365d,
+            interval="1d",
+            auto_adjust=True,
+            progress=False,
         )
-        if last_wr is not None:
-            wr_color = EM if last_wr >= -20 else (GOLD if last_wr >= -50 else RED)
-            fig.add_annotation(
-                xref="paper",
-                yref="y3",
-                x=1.01,
-                y=last_wr,
-                text=f"<b>{last_wr:.1f}</b>",
-                showarrow=False,
-                font=dict(color=wr_color, size=9, family="JetBrains Mono,monospace"),
-                xanchor="left",
-                yanchor="middle",
-                bgcolor="rgba(8,12,16,0.85)",
-                bordercolor=wr_color,
-                borderwidth=1,
-                borderpad=3,
-            )
-    else:
-        fig.add_trace(go.Scatter(x=[], y=[], showlegend=False), row=3, col=1)
+        raw = _flatten_yf(raw)
+        if not raw.empty and "Close" in raw.columns:
+            raw = raw[raw["Close"] > 0].tail(bars).copy()
+            raw.index = pd.to_datetime(raw.index)
+            return raw, f"✓ {ticker} · {len(raw)} daily bars (4h unavailable)"
+    except Exception as exc:
+        return pd.DataFrame(), f"Price fetch failed: {exc}"
 
-    # ── Position state annotation ─────────────────────────────────────────────
-    if ps and ps.position_state not in ("UNKNOWN", None):
-        state_labels = {
-            "RIDING_UPPER": "◉ RIDING UPPER",
-            "FIRST_DIP": "◉ FIRST DIP",
-            "MID_BAND_BROKEN": "◉ MID-BAND BROKEN",
-            "CONSOLIDATING": "◉ CONSOLIDATING",
+    return pd.DataFrame(), f"No price data for {ticker}"
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# UTILITIES
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+def parse_uploaded_csv(file_obj) -> Tuple[Optional[pd.DataFrame], str]:
+    """Parse an NSE options CSV uploaded by the user."""
+    try:
+        df = pd.read_csv(file_obj)
+        df.columns = df.columns.str.strip()
+        rename = {
+            "Strike Price": "Strike",
+            "STRIKE": "Strike",
+            "Expiry Date": "Expiry",
+            "EXPIRY DATE": "Expiry",
         }
-        lbl = state_labels.get(ps.position_state, ps.position_state)
-        col = STATE_COLORS.get(ps.position_state, MUTED)
-        fig.add_annotation(
-            xref="paper",
-            yref="paper",
-            x=0.01,
-            y=0.98,
-            text=f"<b style='font-size:9px'>{lbl}</b>",
-            showarrow=False,
-            font=dict(color=col, size=9, family="JetBrains Mono,monospace"),
-            xanchor="left",
-            yanchor="top",
-            bgcolor="rgba(8,12,16,0.85)",
-            bordercolor=col,
-            borderwidth=1,
-            borderpad=3,
-        )
-
-    # ── Layout ────────────────────────────────────────────────────────────────
-    xax = dict(
-        gridcolor=BORDER,
-        color=MUTED,
-        tickfont=dict(size=8, color=MUTED),
-        rangeslider=dict(visible=False),
-        type="date",
-        showgrid=True,
-        showline=False,
-        rangebreaks=_rangebreaks(),
-    )
-
-    fig.update_layout(
-        paper_bgcolor=BG,
-        plot_bgcolor=SURFACE,
-        font=dict(family="'JetBrains Mono',monospace", color=WHITE, size=10),
-        margin=dict(l=10, r=118, t=32, b=8),
-        showlegend=False,
-        height=660,
-        title=dict(
-            text=(
-                f"<b style='color:{WHITE}'>{symbol}</b>"
-                f"<span style='color:{MUTED}'> · 4H · BB(20,1σ) · W%R(50) · Vol</span>"
-            ),
-            font=dict(size=11),
-            x=0.01,
-        ),
-        hovermode="x unified",
-        hoverlabel=dict(
-            bgcolor=SURFACE, bordercolor=BORDER, font=dict(color=WHITE, size=10)
-        ),
-        xaxis=xax,
-        xaxis2=xax,
-        xaxis3=xax,
-        yaxis=dict(
-            gridcolor=BORDER,
-            color=WHITE,
-            tickformat=",.0f",
-            tickfont=dict(size=9),
-            side="right",
-            showline=False,
-        ),
-        yaxis2=dict(
-            gridcolor="rgba(0,0,0,0)",
-            color=MUTED,
-            tickformat=".2s",
-            tickfont=dict(size=7, color=MUTED),
-            side="right",
-            showgrid=False,
-        ),
-        yaxis3=dict(
-            gridcolor=BORDER,
-            color=MUTED,
-            tickformat=".0f",
-            tickfont=dict(size=8, color=MUTED),
-            side="right",
-            range=[-105, 5],
-            tickvals=[-20, -50, -80],
-        ),
-    )
-    return fig
+        df = df.rename(columns={k: v for k, v in rename.items() if k in df.columns})
+        for col in ["CE_OI", "PE_OI", "Strike"]:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors="coerce")
+        return df, f"✓ Loaded {len(df)} rows from uploaded file"
+    except Exception as exc:
+        return None, f"CSV parse error: {exc}"
 
 
-def _add_wall_lines(fig: go.Figure, ctx: OptionsContext) -> None:
-    levels = [
-        (
-            ctx.walls.resistance,
-            RED,
-            "dash",
-            f"R  {ctx.walls.resistance:,.0f}" if ctx.walls.resistance else None,
-        ),
-        (
-            ctx.walls.support,
-            EM,
-            "dash",
-            f"S  {ctx.walls.support:,.0f}" if ctx.walls.support else None,
-        ),
-        (
-            ctx.walls.max_pain,
-            GOLD,
-            "dot",
-            f"MP {ctx.walls.max_pain:,.0f}" if ctx.walls.max_pain else None,
-        ),
-        (
-            ctx.gex.hvl,
-            VIOLET,
-            "dashdot",
-            f"HVL {ctx.gex.hvl:,.0f}" if ctx.gex.hvl else None,
-        ),
-    ]
-    for y_val, color, dash, label in levels:
-        if y_val is None or label is None:
-            continue
-        fig.add_shape(
-            type="line",
-            xref="paper",
-            yref="y1",
-            x0=0,
-            x1=1,
-            y0=y_val,
-            y1=y_val,
-            line=dict(color=color, width=1.1, dash=dash),
-        )
-        fig.add_annotation(
-            xref="paper",
-            yref="y1",
-            x=1.01,
-            y=y_val,
-            text=f"<b>{label}</b>",
-            showarrow=False,
-            font=dict(color=color, size=9, family="JetBrains Mono,monospace"),
-            xanchor="left",
-            yanchor="middle",
-            bgcolor="rgba(8,12,16,0.9)",
-            bordercolor=color,
-            borderwidth=1,
-            borderpad=3,
-        )
-
-
-def gex_expiry_bar(ctx: OptionsContext) -> go.Figure:
-    data = ctx.gex.by_expiry
-    fig = go.Figure()
-    if not data:
-        fig.add_annotation(
-            text="No GEX data",
-            xref="paper",
-            yref="paper",
-            x=0.5,
-            y=0.5,
-            showarrow=False,
-            font=dict(color=MUTED, size=10),
-        )
-    else:
-        labels = [d[0] for d in data]
-        vals = [d[2] for d in data]
-        pcts = [d[3] for d in data]
-        colors = [
-            "rgba(38,166,154,0.75)" if v >= 0 else "rgba(239,68,68,0.75)" for v in vals
-        ]
-        fig.add_trace(
-            go.Bar(
-                x=labels,
-                y=vals,
-                marker_color=colors,
-                marker_line_width=0,
-                text=[f"{p:.1f}%" for p in pcts],
-                textposition="outside",
-                textfont=dict(color=WHITE, size=8),
-                hovertemplate="<b>%{x}</b><br>%{y:,.0f}M<extra></extra>",
+def infer_spot(options_df: pd.DataFrame) -> Optional[float]:
+    """Best-effort spot price from options chain."""
+    if options_df is None or options_df.empty:
+        return None
+    if "UnderlyingValue" in options_df.columns:
+        v = pd.to_numeric(options_df["UnderlyingValue"], errors="coerce")
+        v = v[v > 0]
+        if not v.empty:
+            return float(v.median())
+    if "Strike" in options_df.columns:
+        strikes = pd.to_numeric(options_df["Strike"], errors="coerce")
+        oi_cols = [c for c in ["CE_OI", "PE_OI"] if c in options_df.columns]
+        if oi_cols:
+            oi = (
+                options_df[oi_cols]
+                .apply(pd.to_numeric, errors="coerce")
+                .sum(axis=1)
+                .fillna(0)
             )
-        )
-    fig.update_layout(
-        paper_bgcolor=BG,
-        plot_bgcolor=SURFACE,
-        font=dict(family="monospace", color=WHITE, size=9),
-        margin=dict(l=8, r=8, t=24, b=8),
-        height=150,
-        title=dict(text="GEX by Expiry", font=dict(size=9, color=MUTED), x=0.01),
-        xaxis=dict(gridcolor=BORDER, color=MUTED, tickfont=dict(size=8)),
-        yaxis=dict(
-            gridcolor=BORDER,
-            color=MUTED,
-            tickformat=",.3s",
-            zerolinecolor=BORDER,
-            tickfont=dict(size=8),
-        ),
-        bargap=0.2,
+            total = oi.sum()
+            if total > 0:
+                return float((strikes * oi).sum() / total)
+    return None
+
+
+def is_market_open() -> bool:
+    tz_ist = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
+    now = datetime.datetime.now(tz_ist)
+    if now.weekday() >= 5:
+        return False
+    open_ = now.replace(hour=9, minute=15, second=0, microsecond=0)
+    close_ = now.replace(hour=15, minute=30, second=0, microsecond=0)
+    return open_ <= now <= close_
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SYMBOL UNIVERSE  (NSE master-quote API + local cache)
+# ══════════════════════════════════════════════════════════════════════════════
+
+import json
+import os
+import logging
+
+_UNIVERSE_CACHE_PATH = os.path.join(
+    os.path.dirname(__file__), "..", "data", "universe_cache.json"
+)
+
+# F&O-eligible indices always included regardless of master-quote response
+_FNO_INDICES = [
+    "NIFTY",
+    "BANKNIFTY",
+    "FINNIFTY",
+    "MIDCPNIFTY",
+    "NIFTYNXT50",
+]
+
+# Hard fallback: NIFTY 50 stocks (used only when NSE unreachable + no cache)
+_NIFTY50_FALLBACK = [
+    "ADANIENT",
+    "ADANIPORTS",
+    "APOLLOHOSP",
+    "ASIANPAINT",
+    "AXISBANK",
+    "BAJAJ-AUTO",
+    "BAJFINANCE",
+    "BAJAJFINSV",
+    "BPCL",
+    "BHARTIARTL",
+    "BRITANNIA",
+    "CIPLA",
+    "COALINDIA",
+    "DIVISLAB",
+    "DRREDDY",
+    "EICHERMOT",
+    "GRASIM",
+    "HCLTECH",
+    "HDFCBANK",
+    "HDFCLIFE",
+    "HEROMOTOCO",
+    "HINDALCO",
+    "HINDUNILVR",
+    "ICICIBANK",
+    "ITC",
+    "INDUSINDBK",
+    "INFY",
+    "JSWSTEEL",
+    "KOTAKBANK",
+    "LT",
+    "M&M",
+    "MARUTI",
+    "NTPC",
+    "NESTLEIND",
+    "ONGC",
+    "POWERGRID",
+    "RELIANCE",
+    "SBILIFE",
+    "SBIN",
+    "SUNPHARMA",
+    "TCS",
+    "TATACONSUM",
+    "TATAMOTORS",
+    "TATASTEEL",
+    "TECHM",
+    "TITAN",
+    "UPL",
+    "ULTRACEMCO",
+    "WIPRO",
+    "ZOMATO",
+] + _FNO_INDICES
+
+
+def _universe_cache_valid() -> bool:
+    """Return True if cache file exists and was written today (IST)."""
+    if not os.path.exists(_UNIVERSE_CACHE_PATH):
+        return False
+    try:
+        with open(_UNIVERSE_CACHE_PATH) as f:
+            data = json.load(f)
+        saved = datetime.datetime.fromisoformat(data.get("ts", "2000-01-01"))
+        tz_ist = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
+        now_ist = datetime.datetime.now(tz_ist).replace(tzinfo=None)
+        # Refresh if saved before 09:00 today
+        today_open = now_ist.replace(hour=9, minute=0, second=0, microsecond=0)
+        return saved >= today_open
+    except Exception:
+        return False
+
+
+def _load_universe_cache() -> list[str]:
+    try:
+        with open(_UNIVERSE_CACHE_PATH) as f:
+            data = json.load(f)
+        syms = data.get("symbols", [])
+        if syms:
+            return syms
+    except Exception:
+        pass
+    return []
+
+
+def _save_universe_cache(symbols: list[str]) -> None:
+    try:
+        os.makedirs(os.path.dirname(_UNIVERSE_CACHE_PATH), exist_ok=True)
+        with open(_UNIVERSE_CACHE_PATH, "w") as f:
+            json.dump(
+                {
+                    "ts": datetime.datetime.now().isoformat(),
+                    "symbols": symbols,
+                },
+                f,
+            )
+    except Exception as exc:
+        logging.warning(f"Could not save universe cache: {exc}")
+
+
+def _fetch_universe_from_nse() -> list[str]:
+    """
+    Fetch F&O symbol universe from NSE master-quote API.
+    NSE SESSION RULES APPLY: Firefox/82 UA, allow_redirects=False,
+    cookies = dict(resp.cookies) from response (not session).
+    """
+    session, cookies = _make_nse_session()
+
+    resp = session.get(
+        "https://www.nseindia.com/api/master-quote",
+        headers=_NSE_HEADER,
+        cookies=cookies,
+        allow_redirects=False,  # ← mandatory on every NSE API call
+        timeout=20,
     )
-    return fig
+    _assert_json(resp)
+    raw = resp.json()
+
+    # master-quote returns either a list or a dict with a list under a key
+    if isinstance(raw, list):
+        items = raw
+    elif isinstance(raw, dict):
+        # try common key names
+        for key in ("data", "symbols", "results", "records"):
+            if key in raw and isinstance(raw[key], list):
+                items = raw[key]
+                break
+        else:
+            items = []
+    else:
+        items = []
+
+    symbols = set()
+    for item in items:
+        if isinstance(item, str):
+            symbols.add(item.strip().upper())
+        elif isinstance(item, dict):
+            # Extract symbol; prefer 'symbol' key, fallback to others
+            sym = (
+                (
+                    item.get("symbol")
+                    or item.get("Symbol")
+                    or item.get("SYMBOL")
+                    or item.get("name")
+                    or ""
+                )
+                .strip()
+                .upper()
+            )
+            if not sym:
+                continue
+            # Filter: keep equities and F&O-eligible; exclude ETFs / bonds
+            inst_type = str(
+                item.get("instrumentType")
+                or item.get("instrument_type")
+                or item.get("series")
+                or ""
+            ).upper()
+            # Skip clearly non-equity instruments
+            if any(x in inst_type for x in ("ETF", "BOND", "DEBENTURE", "WARRANT")):
+                continue
+            # Only include if it looks like a plain equity ticker (no spaces, etc.)
+            if (
+                sym
+                and sym.replace("-", "").replace("&", "").isalpha()
+                or sym in NSE_LOT_SIZES
+            ):
+                symbols.add(sym)
+
+    # Always include the F&O indices
+    for idx in _FNO_INDICES:
+        symbols.add(idx)
+
+    return sorted(symbols)
+
+
+def get_universe() -> list[str]:
+    """
+    Return list of NSE F&O symbol strings.
+    Priority: valid cache → live NSE fetch → stale cache → hardcoded fallback.
+    Never raises; always returns a usable list.
+    """
+    # 1. Valid cache (written today after 09:00 IST)
+    if _universe_cache_valid():
+        cached = _load_universe_cache()
+        if cached:
+            return cached
+
+    # 2. Try live fetch
+    try:
+        symbols = _fetch_universe_from_nse()
+        if symbols:
+            _save_universe_cache(symbols)
+            return symbols
+    except Exception as exc:
+        logging.warning(f"Universe fetch failed: {exc}")
+
+    # 3. Stale cache is better than hardcoded
+    stale = _load_universe_cache()
+    if stale:
+        return stale
+
+    # 4. Absolute fallback
+    return list(_NIFTY50_FALLBACK)
+
+
+# Predefined curated lists for the scanner universe selector
+NIFTY100_SYMBOLS = [
+    "NIFTY",
+    "BANKNIFTY",
+    "RELIANCE",
+    "TCS",
+    "HDFCBANK",
+    "ICICIBANK",
+    "INFY",
+    "SBIN",
+    "AXISBANK",
+    "LT",
+    "BAJFINANCE",
+    "KOTAKBANK",
+    "HCLTECH",
+    "WIPRO",
+    "MARUTI",
+    "ONGC",
+    "NTPC",
+    "POWERGRID",
+    "SUNPHARMA",
+    "TATAMOTORS",
+    "ADANIENT",
+    "ADANIPORTS",
+    "TATASTEEL",
+    "JSWSTEEL",
+    "HINDALCO",
+    "BHARTIARTL",
+    "TITAN",
+    "ASIANPAINT",
+    "BAJAJ-AUTO",
+    "HEROMOTOCO",
+    "DRREDDY",
+    "CIPLA",
+    "DIVISLAB",
+    "NESTLEIND",
+    "ULTRACEMCO",
+    "GRASIM",
+    "TECHM",
+    "EICHERMOT",
+    "INDUSINDBK",
+    "BAJAJFINSV",
+    "BPCL",
+    "ITC",
+    "COALINDIA",
+    "M&M",
+    "UPL",
+    "TATACONSUM",
+    "APOLLOHOSP",
+    "HDFCLIFE",
+    "SBILIFE",
+    "BRITANNIA",
+    "ZOMATO",
+    "FINNIFTY",
+    "MIDCPNIFTY",
+]
